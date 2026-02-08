@@ -807,32 +807,57 @@
             const margin = 10;
             const lineHeight = 5;
 
-            // Summary page
-            doc.setFontSize(16);
-            doc.text('Market Stall Report', margin, yPos);
-            yPos += 10;
-
-            doc.setFontSize(11);
+            // Calculate metrics upfront
             const revenue = appData.sales.reduce((sum, s) => sum + s.amount, 0);
             const costs = appData.costs.stallFee + appData.costs.insurance + appData.costs.squareReader;
             const profit = revenue - costs;
             const cashTotal = appData.sales.filter(s => s.paymentMethod === 'Cash').reduce((sum, s) => sum + s.amount, 0);
             const cardTotal = appData.sales.filter(s => s.paymentMethod === 'Card').reduce((sum, s) => sum + s.amount, 0);
+            const breakPct = costs > 0 ? Math.max(0, Math.min(100, (revenue / costs) * 100)) : (revenue > 0 ? 100 : 0);
+            const perKid = (profit > 0 && appData.teamMembers && appData.teamMembers.length > 0) ? (profit / appData.teamMembers.length) : 0;
 
-            const summaryLines = [
-                `Event: ${appData.reportMeta.eventName}`,
-                `Date: ${appData.reportMeta.eventDate}`,
-                '',
+            const productSales = appData.products.map(p => ({ product: p, units: 0, revenue: 0 }));
+            appData.sales.forEach(s => {
+                const ps = productSales.find(x => x.product.id == s.productId);
+                if (ps) { ps.units += s.qty; ps.revenue += s.amount; }
+            });
+            const topSeller = productSales.reduce((max, ps) => ps.units > max.units ? ps : max, { units: 0 });
+
+            // Title
+            doc.setFontSize(16);
+            doc.text('Market Stall Report', margin, yPos);
+            yPos += 10;
+
+            // Event details
+            doc.setFontSize(11);
+            doc.text(`Event: ${appData.reportMeta.eventName}`, margin, yPos);
+            yPos += lineHeight;
+            doc.text(`Date: ${appData.reportMeta.eventDate}`, margin, yPos);
+            yPos += lineHeight + 3;
+
+            // Key Metrics section
+            doc.setFontSize(12);
+            doc.text('Key Metrics', margin, yPos);
+            yPos += 6;
+            doc.setFontSize(10);
+
+            const metricsLines = [
                 `Total Revenue: $${revenue.toFixed(2)}`,
                 `Cash Sales: $${cashTotal.toFixed(2)}`,
                 `Card Sales: $${cardTotal.toFixed(2)}`,
-                `Total Costs: $${costs.toFixed(2)}`,
+                `Total Costs: $${costs.toFixed(2)} (Stall: $${appData.costs.stallFee.toFixed(2)}, Insurance: $${appData.costs.insurance.toFixed(2)}, Reader: $${appData.costs.squareReader.toFixed(2)})`,
                 `Net Profit: $${profit.toFixed(2)}`,
-                `Total Sales: ${appData.sales.length}`
+                `Total Sales: ${appData.sales.length}`,
+                '',
+                `Break-even Progress: ${breakPct.toFixed(0)}%`,
+                breakPct >= 100 ? `Status: Reached break-even` : `Remaining to break-even: $${Math.max(0, (costs - revenue)).toFixed(2)}`,
+                '',
+                `Per-Kid Payout: $${perKid.toFixed(2)}`,
+                `Top Seller: ${topSeller.units > 0 ? `${topSeller.product.name} (${topSeller.units} units)` : 'None'}`
             ];
 
-            summaryLines.forEach(line => {
-                if (yPos > pageHeight - margin - 30) {
+            metricsLines.forEach(line => {
+                if (yPos > pageHeight - margin - 50) {
                     doc.addPage();
                     yPos = margin;
                 }
@@ -851,15 +876,9 @@
             yPos += 7;
             doc.setFontSize(10);
 
-            const productSales = appData.products.map(p => ({ product: p, units: 0, revenue: 0 }));
-            appData.sales.forEach(s => {
-                const ps = productSales.find(x => x.product.id == s.productId);
-                if (ps) { ps.units += s.qty; ps.revenue += s.amount; }
-            });
-
             productSales.forEach(ps => {
                 if (ps.units > 0) {
-                    if (yPos > pageHeight - margin - 10) {
+                    if (yPos > pageHeight - margin - 20) {
                         doc.addPage();
                         yPos = margin;
                     }
@@ -868,7 +887,29 @@
                 }
             });
 
-            // Add sales chart as image
+            // Add mini sales chart from dashboard
+            const miniChart = document.getElementById('miniSalesChart');
+            if (miniChart) {
+                if (yPos > pageHeight - margin - 80) {
+                    doc.addPage();
+                    yPos = margin;
+                }
+                yPos += 5;
+                doc.setFontSize(11);
+                doc.text('Dashboard Sales Chart', margin, yPos);
+                yPos += 5;
+                try {
+                    const miniChartImage = miniChart.toDataURL('image/png');
+                    const chartWidth = pageWidth - (margin * 2);
+                    const chartHeight = (chartWidth / 400) * 120;
+                    doc.addImage(miniChartImage, 'PNG', margin, yPos, chartWidth, chartHeight);
+                    yPos += chartHeight + 3;
+                } catch (e) {
+                    console.log('Could not embed mini chart:', e);
+                }
+            }
+
+            // Add full sales chart from reports
             const canvas = document.getElementById('salesChart');
             if (canvas) {
                 if (yPos > pageHeight - margin - 120) {
@@ -876,10 +917,13 @@
                     yPos = margin;
                 }
                 yPos += 5;
+                doc.setFontSize(11);
+                doc.text('Detailed Sales Chart', margin, yPos);
+                yPos += 5;
                 try {
                     const chartImage = canvas.toDataURL('image/png');
                     const chartWidth = pageWidth - (margin * 2);
-                    const chartHeight = (chartWidth / 600) * 240; // maintain aspect ratio
+                    const chartHeight = (chartWidth / 600) * 240;
                     doc.addImage(chartImage, 'PNG', margin, yPos, chartWidth, chartHeight);
                     yPos += chartHeight + 5;
                 } catch (e) {
@@ -903,15 +947,16 @@
                     yPos += 8;
 
                     doc.setFontSize(11);
-                    const share = profit > 0 ? (profit / appData.teamMembers.length) : 0;
                     const perKidLines = [
                         `Event: ${appData.reportMeta.eventName}`,
+                        `Date: ${appData.reportMeta.eventDate}`,
+                        '',
                         `Total Event Revenue: $${revenue.toFixed(2)}`,
                         `Total Costs: $${costs.toFixed(2)}`,
                         `Net Profit: $${profit.toFixed(2)}`,
-                        '',
                         `Team Members: ${appData.teamMembers.length}`,
-                        `Share of Profit Pot: $${share.toFixed(2)}`,
+                        '',
+                        `Share of Profit Pot: $${perKid.toFixed(2)}`,
                         '',
                         `Notes: ${appData.reportMeta.notes || 'None'}`
                     ];
