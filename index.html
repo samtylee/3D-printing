@@ -689,6 +689,9 @@
             // draw mini chart
             drawMiniSalesChart(productSales);
 
+            // Update report in real-time
+            updateReportDisplay();
+
             // Confetti when profit just goes positive
             if (typeof appData.previousProfit === 'undefined') appData.previousProfit = 0;
             if (appData.previousProfit <= 0 && profit > 0) {
