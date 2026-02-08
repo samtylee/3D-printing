@@ -1,4 +1,6 @@
 // ===== FIREBASE CONFIGURATION =====
+console.log('✅ app.js loaded!');
+
 // Your Firebase project config - configured for live sync!
 const firebaseConfig = {
     apiKey: "AIzaSyBfUIQlBxfWq-YhvQJt6YIwKEyXG20K8Pg",
