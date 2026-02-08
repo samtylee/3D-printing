@@ -1119,31 +1119,69 @@
         }
 
         function renderAll() {
-            // Ensure all required properties exist before rendering
-            if (!appData.productsBrought) appData.productsBrought = [];
-            if (!appData.finalRevenue) appData.finalRevenue = { cash: 0, card: 0 };
-            if (!appData.stockTake) appData.stockTake = [];
-            if (!appData.costs) appData.costs = { stallFee: 175, insurance: 50, squareReader: 50 };
-            if (!appData.reportMeta) appData.reportMeta = { eventName: 'Glenferrie Festival', eventDate: new Date().toISOString().split('T')[0], notes: '' };
-            if (!appData.teamMembers) appData.teamMembers = [];
-            if (!appData.products) appData.products = [];
-            if (!appData.sales) appData.sales = [];
-            
-            renderTeamList(); renderProducts(); updateProductSelect(); renderSales(); updateDashboard();
-            renderQuickSaleButtons(); renderStockTakeForm();
-            // Initialize cost inputs
-            document.getElementById('stallFee').value = appData.costs.stallFee;
-            document.getElementById('insurance').value = appData.costs.insurance;
-            document.getElementById('squareReader').value = appData.costs.squareReader;
-            updateCosts();
-            // Initialize report section
-            document.getElementById('eventName').value = appData.reportMeta.eventName;
-            document.getElementById('eventDate').value = appData.reportMeta.eventDate;
-            document.getElementById('eventNotes').value = appData.reportMeta.notes;
-            // Initialize end-of-day summary
-            document.getElementById('cashTotal').value = appData.finalRevenue.cash;
-            document.getElementById('cardTotal').value = appData.finalRevenue.card;
-            updateReportDisplay();
+            try {
+                // Ensure all required properties exist before rendering
+                if (!appData.productsBrought) appData.productsBrought = [];
+                if (!appData.finalRevenue) appData.finalRevenue = { cash: 0, card: 0 };
+                if (!appData.stockTake) appData.stockTake = [];
+                if (!appData.costs) appData.costs = { stallFee: 175, insurance: 50, squareReader: 50 };
+                if (!appData.reportMeta) appData.reportMeta = { eventName: 'Glenferrie Festival', eventDate: new Date().toISOString().split('T')[0], notes: '' };
+                if (!appData.teamMembers) appData.teamMembers = [];
+                if (!appData.products) appData.products = [];
+                if (!appData.sales) appData.sales = [];
+                
+                console.log('  renderTeamList...');
+                renderTeamList();
+                console.log('  renderProducts...');
+                renderProducts();
+                console.log('  updateProductSelect...');
+                updateProductSelect();
+                console.log('  renderSales...');
+                renderSales();
+                console.log('  updateDashboard...');
+                updateDashboard();
+                console.log('  renderQuickSaleButtons...');
+                renderQuickSaleButtons();
+                console.log('  renderStockTakeForm...');
+                renderStockTakeForm();
+                
+                // Initialize cost inputs
+                console.log('  Setting cost inputs...');
+                const stallFeeEl = document.getElementById('stallFee');
+                const insuranceEl = document.getElementById('insurance');
+                const squareReaderEl = document.getElementById('squareReader');
+                if (stallFeeEl) stallFeeEl.value = appData.costs.stallFee;
+                if (insuranceEl) insuranceEl.value = appData.costs.insurance;
+                if (squareReaderEl) squareReaderEl.value = appData.costs.squareReader;
+                
+                console.log('  updateCosts...');
+                updateCosts();
+                
+                // Initialize report section
+                console.log('  Setting report inputs...');
+                const eventNameEl = document.getElementById('eventName');
+                const eventDateEl = document.getElementById('eventDate');
+                const eventNotesEl = document.getElementById('eventNotes');
+                if (eventNameEl) eventNameEl.value = appData.reportMeta.eventName;
+                if (eventDateEl) eventDateEl.value = appData.reportMeta.eventDate;
+                if (eventNotesEl) eventNotesEl.value = appData.reportMeta.notes;
+                
+                // Initialize end-of-day summary
+                console.log('  Setting end-of-day inputs...');
+                const cashTotalEl = document.getElementById('cashTotal');
+                const cardTotalEl = document.getElementById('cardTotal');
+                if (cashTotalEl) cashTotalEl.value = appData.finalRevenue.cash;
+                if (cardTotalEl) cardTotalEl.value = appData.finalRevenue.card;
+                
+                console.log('  updateReportDisplay...');
+                updateReportDisplay();
+                
+                console.log('✅ renderAll() complete');
+            } catch(error) {
+                console.error('❌ Error in renderAll():', error);
+                console.error('Stack:', error.stack);
+                throw error;
+            }
         }
 
         function resetData() {
@@ -1168,20 +1206,38 @@
 
         // Setup event listeners
         console.log('Setting up event listeners...');
-        document.querySelectorAll('.tab-button').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                switchTab(e.target.getAttribute('data-tab'));
+        try {
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    switchTab(e.target.getAttribute('data-tab'));
+                });
             });
-        });
+            console.log('✅ Event listeners attached');
+        } catch(err) {
+            console.error('❌ Error attaching event listeners:', err);
+        }
 
         // Initialize: load from localStorage
         console.log('Initializing app...');
-        loadLocal();
-        renderAll();
-        updateSyncStatus();
-        // TEMP: auto-load demo data for preview. Remove this line when finished testing.
-        // loadDemoData(); renderAll(); updateDashboard(); updateReportDisplay();
-        console.log('✅ App ready (Offline Mode)! Demo data loaded');
+        try {
+            console.log('📂 Loading local data...');
+            loadLocal();
+            console.log('📂 Local data loaded');
+            
+            console.log('🎨 Rendering all UI...');
+            renderAll();
+            console.log('🎨 UI rendered');
+            
+            console.log('💫 Updating sync status...');
+            updateSyncStatus();
+            console.log('💫 Sync status updated');
+            
+            console.log('✅ App ready (Offline Mode)!');
+        } catch(error) {
+            console.error('❌ CRITICAL APP ERROR during initialization:', error);
+            console.error('Stack:', error.stack);
+            alert('App initialization failed: ' + error.message);
+        }
     </script>
 </body>
 </html>
