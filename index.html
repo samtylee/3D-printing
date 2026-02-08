@@ -528,15 +528,6 @@
                 `<button class="product-btn" data-product-id="${p.id}" onclick="handleProductClick(this)">${p.name}<br>$${p.price.toFixed(2)}</button>`
             ).join('');
         }
-        }
-
-        function renderQuickSaleButtons() {
-            const grid = document.getElementById('quickSaleButtons');
-            if (!grid) return;
-            grid.innerHTML = appData.products.map(p => 
-                `<button class="product-btn" data-product-id="${p.id}" onclick="handleProductClick(this)">${p.name}<br>$${p.price.toFixed(2)}</button>`
-            ).join('');
-        }
 
         function handleProductClick(button) {
             const productId = parseInt(button.getAttribute('data-product-id'));
