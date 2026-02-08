@@ -3,287 +3,274 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Glenferrie Festival Market Stall Tracker</title>
-    <link rel="stylesheet" href="style.css">
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasecdn/10.7.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasecdn/10.7.0/firebase-database.js"></script>
+    <title>Market Stall App - TEST</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #667eea; min-height: 100vh; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 30px 20px; text-align: center; color: white; }
+        .header h1 { font-size: 2.5em; margin-bottom: 5px; }
+        .sync-indicator { margin-top: 15px; font-size: 0.9em; }
+        .sync-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #4caf50; margin-right: 8px; }
+        .sync-dot.offline { background: #ff9800; }
+        .tabs { display: flex; background: #f8f9fa; border-bottom: 2px solid #ddd; }
+        .tab-button { flex: 1; padding: 15px; cursor: pointer; border: none; background: none; font-size: 16px; font-weight: 500; transition: 0.3s; }
+        .tab-button.active { background: white; border-bottom: 3px solid #667eea; color: #667eea; }
+        .tab-content { display: none; padding: 30px; }
+        .tab-content.active { display: block; }
+        .section-box { margin-bottom: 20px; padding: 20px; background: #f8f9fa; border-left: 4px solid #667eea; border-radius: 5px; }
+        .btn { padding: 10px 20px; margin: 5px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-danger { background: #f5576c; color: white; }
+        input { padding: 10px; margin: 5px; border: 1px solid #ddd; border-radius: 3px; font-size: 14px; }
+        .team-list { margin: 10px 0; padding: 10px; background: white; border-radius: 3px; min-height: 30px; }
+        .team-member { background: #e3f2fd; padding: 10px; margin: 5px 0; border-radius: 3px; display: flex; justify-content: space-between; align-items: center; }
+    </style>
 </head>
 <body>
-    <script>console.log('✅ HTML page loaded!');</script>
+    <script>console.log('✅ HTML loaded');</script>
+    
     <div class="container">
-        <!-- Header -->
         <header class="header">
-            <h1>🎪 Glenferrie Festival Market Stall</h1>
-            <p class="subtitle">Team Business Tracker</p>
+            <h1>🎪 Market Stall Tracker</h1>
             <div class="sync-indicator">
-                <span id="syncStatus" class="sync-dot"></span>
-                <span id="syncText" class="sync-text">Connecting...</span>
+                <span class="sync-dot" id="syncStatus"></span>
+                <span id="syncText">Connecting...</span>
             </div>
         </header>
 
-        <!-- Navigation Tabs -->
         <nav class="tabs">
             <button class="tab-button active" data-tab="setup">Setup</button>
             <button class="tab-button" data-tab="products">Products</button>
             <button class="tab-button" data-tab="sales">Sales</button>
             <button class="tab-button" data-tab="dashboard">Dashboard</button>
-            <button class="tab-button" data-tab="reports">Reports</button>
         </nav>
 
-        <!-- ==================== SETUP SECTION ==================== -->
+        <!-- Setup Tab -->
         <section id="setup" class="tab-content active">
             <h2>Setup</h2>
-
-            <!-- Team Members -->
             <div class="section-box">
                 <h3>Team Members</h3>
                 <div id="teamList" class="team-list"></div>
-                <div class="input-group">
-                    <input type="text" id="newTeamMember" placeholder="Enter a team member name" maxlength="30">
-                    <button class="btn btn-primary" onclick="addTeamMember()">Add Member</button>
-                </div>
+                <input type="text" id="newTeamMember" placeholder="Enter name">
+                <button class="btn btn-primary" onclick="addTeamMember()">Add Member</button>
             </div>
-
-            <!-- Shared Costs -->
-            <div class="section-box">
-                <h3>Shared Costs</h3>
-                <div class="cost-inputs">
-                    <div class="input-group">
-                        <label>Stall Fee (AUD)</label>
-                        <input type="number" id="stallFee" min="0" step="0.01" value="175">
-                    </div>
-                    <div class="input-group">
-                        <label>Public Liability Insurance (AUD)</label>
-                        <input type="number" id="insurance" min="0" step="0.01" value="50">
-                    </div>
-                    <div class="input-group">
-                        <label>Square Reader (AUD)</label>
-                        <input type="number" id="squareReader" min="0" step="0.01" value="50">
-                    </div>
-                </div>
-                <div class="cost-summary">
-                    <strong>Total Shared Costs: $<span id="totalCosts">275.00</span></strong>
-                </div>
-                <button class="btn btn-primary" onclick="updateCosts()">Save Costs</button>
-            </div>
-
-            <!-- Utility Buttons -->
             <div class="section-box">
                 <h3>Utilities</h3>
-                <button class="btn btn-secondary" onclick="loadDemoData()">📊 Load Demo Data</button>
-                <button class="btn btn-danger" onclick="confirmReset()">🗑️ Reset All Data</button>
+                <button class="btn btn-primary" onclick="loadDemoData()">Load Demo Data</button>
+                <button class="btn btn-danger" onclick="resetData()">Reset Data</button>
             </div>
         </section>
 
-        <!-- ==================== PRODUCTS SECTION ==================== -->
+        <!-- Products Tab -->
         <section id="products" class="tab-content">
             <h2>Products</h2>
-
-            <!-- Add Product -->
             <div class="section-box">
-                <h3>Add New Product</h3>
-                <div class="input-group">
-                    <input type="text" id="productName" placeholder="Product name (e.g., Miniature Dragon)" maxlength="50">
-                </div>
-                <div class="input-group">
-                    <label>Default Price (AUD) - Optional</label>
-                    <input type="number" id="productPrice" min="0" step="0.01" placeholder="e.g., 15.00">
-                </div>
+                <h3>Add Product</h3>
+                <input type="text" id="productName" placeholder="Product name">
+                <input type="number" id="productPrice" placeholder="Price" min="0" step="0.01">
                 <button class="btn btn-primary" onclick="addProduct()">Add Product</button>
             </div>
-
-            <!-- Product List -->
             <div class="section-box">
-                <h3>Product List</h3>
-                <div id="productList" class="product-list"></div>
+                <h3>Products List</h3>
+                <div id="productsList"></div>
             </div>
         </section>
 
-        <!-- ==================== SALES SECTION ==================== -->
+        <!-- Sales Tab -->
         <section id="sales" class="tab-content">
             <h2>Sales</h2>
-
-            <!-- Mode Toggle -->
-            <div class="mode-toggle">
-                <button class="mode-btn active" data-mode="quick">⚡ Quick Sale Mode</button>
-                <button class="mode-btn" data-mode="detailed">📋 Detailed Entry</button>
+            <div class="section-box">
+                <h3>Record Sale</h3>
+                <select id="saleProduct">
+                    <option>Select product...</option>
+                </select>
+                <input type="number" id="saleQty" placeholder="Quantity" min="1" value="1">
+                <button class="btn btn-primary" onclick="recordSale()">Record Sale</button>
             </div>
-
-            <!-- Quick Sale Mode -->
-            <div id="quickSaleMode" class="sales-mode active">
-                <div class="section-box">
-                    <h3>Tap a Product to Sell</h3>
-                    <div id="quickSaleButtons" class="quick-sale-grid"></div>
-                </div>
-
-                <!-- Payment Method Modal (hidden by default) -->
-                <div id="paymentModal" class="modal hidden">
-                    <div class="modal-content">
-                        <h3 id="paymentProductName">Product Name</h3>
-                        <p>How was this paid?</p>
-                        <button class="btn btn-primary" onclick="recordSale('Cash')">💵 Cash</button>
-                        <button class="btn btn-primary" onclick="recordSale('Card')">💳 Card</button>
-                        <button class="btn btn-secondary" onclick="closePaymentModal()">Cancel</button>
-                    </div>
-                </div>
-
-                <!-- Quantity Adjustment -->
-                <div class="section-box">
-                    <h3>Quantity Adjustment</h3>
-                    <p>Last sale adjustments:</p>
-                    <div class="button-group">
-                        <button class="btn btn-secondary" onclick="adjustLastSaleQty(1)">+1</button>
-                        <button class="btn btn-secondary" onclick="adjustLastSaleQty(5)">+5</button>
-                        <button class="btn btn-danger" onclick="undoLastSale()">↩️ Undo Last Sale</button>
-                    </div>
-                </div>
-
-                <!-- Running Totals -->
-                <div class="section-box">
-                    <h3>Running Totals</h3>
-                    <div class="totals-grid">
-                        <div class="total-card">
-                            <div class="total-label">Total Revenue</div>
-                            <div class="total-amount">$<span id="quickTotalRevenue">0.00</span></div>
-                        </div>
-                        <div class="total-card">
-                            <div class="total-label">Cash Sales</div>
-                            <div class="total-amount">$<span id="quickCashTotal">0.00</span></div>
-                        </div>
-                        <div class="total-card">
-                            <div class="total-label">Card Sales</div>
-                            <div class="total-amount">$<span id="quickCardTotal">0.00</span></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Detailed Entry Mode -->
-            <div id="detailedSalesMode" class="sales-mode">
-                <div class="section-box">
-                    <h3>Record a Sale</h3>
-                    <div class="input-group">
-                        <label>Product</label>
-                        <select id="saleProductSelect">
-                            <option value="">-- Select a Product --</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label>Quantity</label>
-                        <input type="number" id="saleQuantity" min="1" value="1">
-                    </div>
-                    <div class="input-group">
-                        <label>Price per Unit (AUD)</label>
-                        <input type="number" id="saleUnitPrice" min="0" step="0.01" placeholder="e.g., 15.00">
-                    </div>
-                    <div class="input-group">
-                        <label>Payment Method</label>
-                        <select id="salePaymentMethod">
-                            <option value="">-- Select --</option>
-                            <option value="Cash">💵 Cash</option>
-                            <option value="Card">💳 Card</option>
-                        </select>
-                    </div>
-                    <button class="btn btn-primary" onclick="addSaleDetailed()">Add Sale</button>
-                </div>
-
-                <!-- Sales History -->
-                <div class="section-box">
-                    <h3>Sales History</h3>
-                    <div id="salesList" class="sales-list"></div>
-                </div>
+            <div class="section-box">
+                <h3>Sales History</h3>
+                <div id="salesList"></div>
             </div>
         </section>
 
-        <!-- ==================== DASHBOARD SECTION ==================== -->
+        <!-- Dashboard Tab -->
         <section id="dashboard" class="tab-content">
             <h2>Dashboard</h2>
-
-            <!-- Key Metrics -->
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <div class="metric-label">Total Revenue</div>
-                    <div class="metric-value">$<span id="dashRevenue">0.00</span></div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Shared Costs</div>
-                    <div class="metric-value">$<span id="dashCosts">275.00</span></div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Net Profit</div>
-                    <div class="metric-value" id="dashProfitDisplay">-$<span id="dashProfit">275.00</span></div>
-                </div>
-            </div>
-
-            <!-- Break-Even Meter -->
             <div class="section-box">
-                <h3>Break-Even Progress</h3>
-                <div class="break-even-container">
-                    <div class="progress-bar">
-                        <div id="breakEvenFill" class="progress-fill" style="width: 0%"></div>
-                    </div>
-                    <div class="break-even-info">
-                        <p id="breakEvenText">Need $275.00 to break even</p>
-                        <p id="breakEvenPercent">0% of target reached</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Profit Pot -->
-            <div class="section-box profit-pot">
-                <h3>💰 Profit Pot</h3>
-                <div class="profit-display">
-                    <div class="profit-card">
-                        <div class="profit-label">Current Net Profit</div>
-                        <div class="profit-amount" id="profitAmount">-$275.00</div>
-                    </div>
-                    <div class="profit-card">
-                        <div class="profit-label">Each Kid Gets</div>
-                        <div class="profit-amount" id="perKidAmount">-$27.50</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Product Sales Chart -->
-            <div class="section-box">
-                <h3>Units Sold by Product</h3>
-                <div id="productChart" class="product-chart"></div>
-            </div>
-
-            <!-- Top Seller Badge -->
-            <div class="section-box">
-                <div id="topSellerBadge" class="top-seller-badge hidden">
-                    <span class="badge-emoji">🏆</span>
-                    <span id="topSellerName">Top Seller: Product Name</span>
-                </div>
-            </div>
-
-            <!-- Confetti Container -->
-            <div id="confetti" class="confetti-container"></div>
-        </section>
-
-        <!-- ==================== REPORTS SECTION ==================== -->
-        <section id="reports" class="tab-content">
-            <h2>Reports</h2>
-
-            <!-- Export Buttons -->
-            <div class="section-box">
-                <h3>Export Reports</h3>
-                <button class="btn btn-primary" onclick="printTeamReport()">📄 Print Team Report</button>
-                <button class="btn btn-primary" onclick="printAllKidReports()">👥 Print All Kid Reports</button>
-            </div>
-
-            <!-- Report Preview -->
-            <div id="reportPreview" class="report-preview">
-                <!-- This will be populated by JavaScript for preview -->
+                <h3>Financials</h3>
+                <p><strong>Total Revenue:</strong> $<span id="revenue">0.00</span></p>
+                <p><strong>Total Sales:</strong> <span id="saleCount">0</span></p>
             </div>
         </section>
     </div>
 
-    <!-- Print-Only Report Content -->
-    <div id="printReports" class="print-only"></div>
+    <script>
+        console.log('✅ Script section started');
+        
+        let appData = {
+            teamMembers: [],
+            products: [],
+            sales: []
+        };
 
-    <script src="app.js"></script>
+        function updateSyncStatus() {
+            const dot = document.getElementById('syncStatus');
+            const text = document.getElementById('syncText');
+            if (navigator.onLine) {
+                dot.classList.remove('offline');
+                dot.style.background = '#4caf50';
+                text.textContent = 'Live Sync ✓';
+            } else {
+                dot.classList.add('offline');
+                dot.style.background = '#ff9800';
+                text.textContent = 'Offline Mode';
+            }
+        }
+
+        function switchTab(tabName) {
+            console.log('Switching to tab:', tabName);
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+        }
+
+        function addTeamMember() {
+            const input = document.getElementById('newTeamMember');
+            const name = input.value.trim();
+            if (name) {
+                appData.teamMembers.push(name);
+                input.value = '';
+                renderTeamList();
+            }
+        }
+
+        function renderTeamList() {
+            const list = document.getElementById('teamList');
+            list.innerHTML = appData.teamMembers.map((m, i) => 
+                `<div class="team-member">${m} <button class="btn btn-danger" onclick="removeTeamMember(${i})">Remove</button></div>`
+            ).join('');
+        }
+
+        function removeTeamMember(i) {
+            appData.teamMembers.splice(i, 1);
+            renderTeamList();
+        }
+
+        function addProduct() {
+            const name = document.getElementById('productName').value.trim();
+            const price = parseFloat(document.getElementById('productPrice').value);
+            if (name && price > 0) {
+                appData.products.push({ id: Date.now(), name, price });
+                document.getElementById('productName').value = '';
+                document.getElementById('productPrice').value = '';
+                renderProducts();
+                updateProductSelect();
+            }
+        }
+
+        function renderProducts() {
+            const list = document.getElementById('productsList');
+            list.innerHTML = appData.products.map(p => 
+                `<div class="team-member">${p.name} - $${p.price.toFixed(2)} <button class="btn btn-danger" onclick="removeProduct(${p.id})">Remove</button></div>`
+            ).join('');
+        }
+
+        function removeProduct(id) {
+            appData.products = appData.products.filter(p => p.id !== id);
+            renderProducts();
+            updateProductSelect();
+        }
+
+        function updateProductSelect() {
+            const select = document.getElementById('saleProduct');
+            const current = select.value;
+            select.innerHTML = '<option>Select product...</option>' + 
+                appData.products.map(p => `<option value="${p.id}">${p.name} - $${p.price.toFixed(2)}</option>`).join('');
+            select.value = current;
+        }
+
+        function recordSale() {
+            const productId = document.getElementById('saleProduct').value;
+            const qty = parseInt(document.getElementById('saleQty').value);
+            if (productId && qty > 0) {
+                const product = appData.products.find(p => p.id == productId);
+                if (product) {
+                    appData.sales.push({ productId, qty, price: product.price, amount: qty * product.price });
+                    document.getElementById('saleQty').value = '1';
+                    renderSales();
+                    updateDashboard();
+                }
+            }
+        }
+
+        function renderSales() {
+            const list = document.getElementById('salesList');
+            list.innerHTML = appData.sales.map((s, i) => {
+                const product = appData.products.find(p => p.id == s.productId);
+                return `<div class="team-member">${product?.name || 'Unknown'} x${s.qty} = $${s.amount.toFixed(2)} <button class="btn btn-danger" onclick="removeSale(${i})">Remove</button></div>`;
+            }).join('');
+        }
+
+        function removeSale(i) {
+            appData.sales.splice(i, 1);
+            renderSales();
+            updateDashboard();
+        }
+
+        function updateDashboard() {
+            const revenue = appData.sales.reduce((sum, s) => sum + s.amount, 0);
+            document.getElementById('revenue').textContent = revenue.toFixed(2);
+            document.getElementById('saleCount').textContent = appData.sales.length;
+        }
+
+        function loadDemoData() {
+            appData.teamMembers = ['Alice', 'Bob', 'Charlie'];
+            appData.products = [
+                { id: 1, name: 'Dragon', price: 15 },
+                { id: 2, name: 'Spinner', price: 8 },
+                { id: 3, name: 'Stand', price: 12 }
+            ];
+            appData.sales = [
+                { productId: 1, qty: 2, price: 15, amount: 30 },
+                { productId: 2, qty: 3, price: 8, amount: 24 }
+            ];
+            renderAll();
+        }
+
+        function renderAll() {
+            renderTeamList();
+            renderProducts();
+            updateProductSelect();
+            renderSales();
+            updateDashboard();
+        }
+
+        function resetData() {
+            if (confirm('Reset all data?')) {
+                appData = { teamMembers: [], products: [], sales: [] };
+                renderAll();
+            }
+        }
+
+        // Setup event listeners
+        console.log('Setting up event listeners...');
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                switchTab(e.target.getAttribute('data-tab'));
+            });
+        });
+
+        // Initialize
+        console.log('Initializing app...');
+        updateSyncStatus();
+        renderAll();
+        console.log('✅ App ready!');
+
+        // Listen for online/offline
+        window.addEventListener('online', updateSyncStatus);
+        window.addEventListener('offline', updateSyncStatus);
+    </script>
 </body>
 </html>
