@@ -387,9 +387,11 @@
 
         function setQtyAndAsk(qty) {
             appData.pendingQty = qty;
+            console.log('Qty set to:', appData.pendingQty);
             closeQuantityModal();
             const product = appData.products.find(p => p.id == appData.pendingProductId);
             if (product) {
+                console.log('Opening payment modal for:', product.name, 'qty:', qty, 'total:', qty * product.price);
                 document.getElementById('paymentProductName').textContent = `${product.name} x${qty} = $${(qty * product.price).toFixed(2)}`;
                 document.getElementById('paymentModal').classList.remove('hidden');
             }
@@ -404,8 +406,8 @@
         function recordSale(paymentMethod) {
             if (!appData.pendingProductId) return;
             const product = appData.products.find(p => p.id == appData.pendingProductId);
+            const qty = appData.pendingQty || 1;
             if (product) {
-                const qty = appData.pendingQty || 1;
                 appData.sales.push({ 
                     productId: appData.pendingProductId, 
                     qty: qty, 
@@ -413,10 +415,10 @@
                     amount: qty * product.price,
                     paymentMethod: paymentMethod
                 });
-                closePaymentModal();
                 updateLastSaleInfo();
                 renderSales(); updateDashboard();
                 saveLocal();
+                closePaymentModal();
             }
         }
 
