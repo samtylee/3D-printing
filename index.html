@@ -467,29 +467,51 @@
         }
 
         function addProduct() {
-            const name = document.getElementById('productName').value.trim();
-            const price = parseFloat(document.getElementById('productPrice').value) || 0;
-            const quantityBrought = parseInt(document.getElementById('productQuantityBrought').value);
-            
-            if (!name) {
-                showNotification('❌ Please enter a product name');
-                return;
+            try {
+                const nameInput = document.getElementById('productName');
+                const priceInput = document.getElementById('productPrice');
+                const qtyInput = document.getElementById('productQuantityBrought');
+                
+                if (!nameInput || !priceInput || !qtyInput) {
+                    console.error('Form inputs not found');
+                    return;
+                }
+                
+                const name = nameInput.value.trim();
+                const price = parseFloat(priceInput.value) || 0;
+                const quantityBrought = parseInt(qtyInput.value);
+                
+                console.log('Product add attempt:', { name, price, quantityBrought });
+                
+                if (!name) {
+                    alert('Please enter a product name');
+                    return;
+                }
+                if (!quantityBrought || quantityBrought < 1) {
+                    alert('Please enter quantity brought (must be at least 1)');
+                    return;
+                }
+                
+                const id = Date.now();
+                appData.products.push({ id, name, price });
+                appData.productsBrought.push({ productId: id, quantityBrought });
+                
+                nameInput.value = '';
+                priceInput.value = '';
+                qtyInput.value = '';
+                
+                renderProducts();
+                updateProductSelect();
+                renderQuickSaleButtons();
+                renderStockTakeForm();
+                saveLocal();
+                
+                console.log('Product added successfully:', name);
+                alert(`✅ ${name} added!`);
+            } catch(e) {
+                console.error('Error adding product:', e);
+                alert('Error: ' + e.message);
             }
-            if (!quantityBrought || quantityBrought < 1) {
-                showNotification('❌ Please enter quantity brought (must be at least 1)');
-                return;
-            }
-            
-            const id = Date.now();
-            appData.products.push({ id, name, price });
-            // Store quantity brought
-            appData.productsBrought.push({ productId: id, quantityBrought });
-            document.getElementById('productName').value = '';
-            document.getElementById('productPrice').value = '';
-            document.getElementById('productQuantityBrought').value = '';
-            renderProducts(); updateProductSelect(); renderQuickSaleButtons();
-            saveLocal();
-            showNotification(`✅ ${name} added!`);
         }
 
         function renderProducts() {
