@@ -1,436 +1,375 @@
-// ==================== DATA MANAGEMENT ====================
-// This app stores all data in the browser's localStorage for offline persistence.
+// ===== FIREBASE CONFIGURATION =====
+// Your Firebase project config - configured for live sync!
+const firebaseConfig = {
+    apiKey: "AIzaSyBfUIQlBxfWq-YhvQJt6YIwKEyXG20K8Pg",
+    authDomain: "d-printing-8c673.firebaseapp.com",
+    databaseURL: "https://d-printing-8c673-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "d-printing-8c673",
+    storageBucket: "d-printing-8c673.firebasestorage.app",
+    messagingSenderId: "831638904366",
+    appId: "1:831638904366:web:a8ecd84d6f9ad7bd7a09bf",
+    measurementId: "G-5R6FPS4D9S"
+};
 
-// Initialize localStorage with default structure if empty
-function initializeApp() {
-    if (!localStorage.getItem('teamMembers')) {
-        localStorage.setItem('teamMembers', JSON.stringify([]));
-    }
-    if (!localStorage.getItem('products')) {
-        localStorage.setItem('products', JSON.stringify([]));
-    }
-    if (!localStorage.getItem('sales')) {
-        localStorage.setItem('sales', JSON.stringify([]));
-    }
-    if (!localStorage.getItem('costs')) {
-        localStorage.setItem('costs', JSON.stringify({
-            stallFee: 175,
-            insurance: 50,
-            squareReader: 50
-        }));
-    }
-    if (!localStorage.getItem('reportMeta')) {
-        localStorage.setItem('reportMeta', JSON.stringify({
-            eventName: 'Glenferrie Festival',
-            eventDate: new Date().toISOString().split('T')[0],
-            notes: ''
-        }));
-    }
-    if (!localStorage.getItem('confettiTriggered')) {
-        localStorage.setItem('confettiTriggered', 'false');
-    }
+// Try to initialize Firebase
+let firebaseReady = false;
+let realtimeDB = null;
+let isOnline = false;
+
+try {
+    firebase.initializeApp(firebaseConfig);
+    realtimeDB = firebase.database();
+    firebaseReady = true;
+    console.log('✅ Firebase initialized successfully - Live sync enabled!');
+} catch (error) {
+    console.log('Firebase initialization error (this is OK if using offline mode)');
 }
 
-// Get data from localStorage
-function getTeamMembers() {
-    return JSON.parse(localStorage.getItem('teamMembers') || '[]');
-}
+// ===== STATE MANAGEMENT =====
+const appState = {
+    teamMembers: [],
+    products: [],
+    sales: [],
+    costs: {
+        stallFee: 175,
+        insurance: 50,
+        squareReader: 50
+    },
+    reportMeta: {
+        eventName: "Glenferrie Festival",
+        eventDate: new Date().toISOString().split('T')[0],
+        notes: ""
+    },
+    currentSalesMode: 'quick',
+    pendingProductId: null
+};
 
-function getProducts() {
-    return JSON.parse(localStorage.getItem('products') || '[]');
-}
+// ===== INITIALIZATION =====
+// Main initialization will happen at bottom of file
 
-function getSales() {
-    return JSON.parse(localStorage.getItem('sales') || '[]');
-}
-
-function getCosts() {
-    return JSON.parse(localStorage.getItem('costs') || '{}');
-}
-
-function getReportMeta() {
-    return JSON.parse(localStorage.getItem('reportMeta') || '{}');
-}
-
-// Save data to localStorage
-function saveTeamMembers(members) {
-    localStorage.setItem('teamMembers', JSON.stringify(members));
-    updateUI();
-}
-
-function saveProducts(products) {
-    localStorage.setItem('products', JSON.stringify(products));
-    updateUI();
-}
-
-function saveSales(sales) {
-    localStorage.setItem('sales', JSON.stringify(sales));
-    updateUI();
-}
-
-function saveCosts(costs) {
-    localStorage.setItem('costs', JSON.stringify(costs));
-    updateUI();
-}
-
-function saveReportMeta(meta) {
-    localStorage.setItem('reportMeta', JSON.stringify(meta));
-}
-
-// ==================== CALCULATIONS ====================
-
-// Calculate total revenue from all sales
-function calculateTotalRevenue() {
-    const sales = getSales();
-    return sales.reduce((sum, sale) => sum + (sale.qty * sale.unitPrice), 0);
-}
-
-// Calculate total shared costs
-function calculateTotalCosts() {
-    const costs = getCosts();
-    let total = costs.stallFee + costs.insurance + costs.squareReader;
-    return total;
-}
-
-// Calculate net profit
-function calculateNetProfit() {
-    return calculateTotalRevenue() - calculateTotalCosts();
-}
-
-// Calculate per-kid payout
-function calculatePerKidPayout() {
-    const teamMembers = getTeamMembers();
-    if (teamMembers.length === 0) return 0;
-    return calculateNetProfit() / teamMembers.length;
-}
-
-// Calculate break-even progress percentage
-function calculateBreakEvenPercent() {
-    const costs = calculateTotalCosts();
-    const revenue = calculateTotalRevenue();
-    if (costs === 0) return 100;
-    return Math.min(100, (revenue / costs) * 100);
-}
-
-// Calculate revenue needed to break even
-function calculateBreakEvenNeeded() {
-    const costs = calculateTotalCosts();
-    const revenue = calculateTotalRevenue();
-    return Math.max(0, costs - revenue);
-}
-
-// Get sales by product with counts
-function getSalesByProduct() {
-    const sales = getSales();
-    const products = getProducts();
-    const productMap = {};
-
-    products.forEach(product => {
-        productMap[product.id] = { name: product.name, qty: 0 };
+// ===== FIREBASE SETUP =====
+function setupFirebaseListeners() {
+    const db = realtimeDB;
+    db.ref('teamMembers').on('value', (snapshot) => {
+        appState.teamMembers = snapshot.val() || [];
+        renderAll();
     });
+    db.ref('products').on('value', (snapshot) => {
+        appState.products = snapshot.val() || [];
+        renderAll();
+    });
+    db.ref('sales').on('value', (snapshot) => {
+        appState.sales = snapshot.val() || [];
+        renderAll();
+    });
+    db.ref('costs').on('value', (snapshot) => {
+        appState.costs = snapshot.val() || appState.costs;
+        renderAll();
+    });
+    db.ref('reportMeta').on('value', (snapshot) => {
+        appState.reportMeta = snapshot.val() || appState.reportMeta;
+        renderAll();
+    });
+}
 
-    sales.forEach(sale => {
-        if (productMap[sale.productId]) {
-            productMap[sale.productId].qty += sale.qty;
+function checkOnlineStatus() {
+    if (!firebaseReady) return;
+    const connectedRef = realtimeDB.ref('.info/connected');
+    connectedRef.on('value', (snapshot) => {
+        isOnline = snapshot.val() === true;
+        updateSyncStatus(isOnline);
+    });
+}
+
+function updateSyncStatus(online) {
+    const indicator = document.getElementById('syncStatus');
+    const text = document.getElementById('syncText');
+    if (indicator && text) {
+        if (online) {
+            indicator.classList.remove('offline');
+            indicator.style.background = '#4caf50';
+            text.textContent = 'Live Sync ✓';
+        } else {
+            indicator.classList.add('offline');
+            indicator.style.background = '#ff9800';
+            text.textContent = 'Offline Mode';
         }
-    });
-
-    return productMap;
+    }
 }
 
-// Get top selling product
-function getTopSellerProduct() {
-    const salesByProduct = getSalesByProduct();
-    let topProduct = null;
-    let maxQty = 0;
-
-    Object.values(salesByProduct).forEach(product => {
-        if (product.qty > maxQty) {
-            maxQty = product.qty;
-            topProduct = product;
-        }
-    });
-
-    return topProduct;
+// ===== DATA PERSISTENCE =====
+function saveToStorage() {
+    localStorage.setItem('stallAppState', JSON.stringify(appState));
 }
 
-// ==================== TEAM MEMBER MANAGEMENT ====================
+function loadFromStorage() {
+    const stored = localStorage.getItem('stallAppState');
+    if (stored) {
+        const loaded = JSON.parse(stored);
+        appState.teamMembers = loaded.teamMembers || [];
+        appState.products = loaded.products || [];
+        appState.sales = loaded.sales || [];
+        appState.costs = loaded.costs || appState.costs;
+        appState.reportMeta = loaded.reportMeta || appState.reportMeta;
+    }
+}
 
-function addTeamMember() {
-    const input = document.getElementById('newTeamMember');
-    const name = input.value.trim();
-
-    if (!name) {
-        alert('Please enter a team member name.');
+function saveToFirebase() {
+    if (!firebaseReady) {
+        saveToStorage();
         return;
     }
-
-    const members = getTeamMembers();
-    members.push(name);
-    input.value = '';
-    saveTeamMembers(members);
+    const db = realtimeDB;
+    db.ref('teamMembers').set(appState.teamMembers).catch(err => {
+        console.error('Error saving:', err);
+        saveToStorage();
+    });
+    db.ref('products').set(appState.products).catch(err => saveToStorage());
+    db.ref('sales').set(appState.sales).catch(err => saveToStorage());
+    db.ref('costs').set(appState.costs).catch(err => saveToStorage());
+    db.ref('reportMeta').set(appState.reportMeta).catch(err => saveToStorage());
 }
 
-function deleteTeamMember(index) {
-    if (!confirm('Remove this team member?')) return;
-    const members = getTeamMembers();
-    members.splice(index, 1);
-    saveTeamMembers(members);
+// ===== UI SETUP =====
+function setupUIListeners() {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            switchTab(this.dataset.tab);
+        });
+    });
+    document.getElementById('stallFee').addEventListener('change', saveCosts);
+    document.getElementById('insurance').addEventListener('change', saveCosts);
+    document.getElementById('squareReader').addEventListener('change', saveCosts);
+    document.getElementById('newMemberName').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') addTeamMember();
+    });
+    document.getElementById('newProductName').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') addProduct();
+    });
+    document.getElementById('saleProduct').addEventListener('change', updateProductPrice);
+    document.getElementById('reportNotes').addEventListener('change', function() {
+        appState.reportMeta.notes = this.value;
+        saveToFirebase();
+    });
+    document.getElementById('reportEventDate').addEventListener('change', function() {
+        appState.reportMeta.eventDate = this.value;
+        saveToFirebase();
+    });
+}
+
+function switchTab(tabName) {
+    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(tabName).classList.add('active');
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+    if (tabName === 'dashboard') {
+        setTimeout(renderDashboard, 100);
+    }
+}
+
+// ===== TEAM MANAGEMENT =====
+function addTeamMember() {
+    const input = document.getElementById('newMemberName');
+    const name = input.value.trim();
+    if (!name) {
+        alert('Please enter a team member name');
+        return;
+    }
+    if (appState.teamMembers.includes(name)) {
+        alert('This member already exists');
+        return;
+    }
+    appState.teamMembers.push(name);
+    input.value = '';
+    saveToFirebase();
+    renderTeamList();
+}
+
+function removeTeamMember(name) {
+    appState.teamMembers = appState.teamMembers.filter(m => m !== name);
+    saveToFirebase();
+    renderTeamList();
 }
 
 function renderTeamList() {
-    const members = getTeamMembers();
-    const container = document.getElementById('teamList');
-    container.innerHTML = '';
-
-    members.forEach((member, index) => {
-        const item = document.createElement('div');
-        item.className = 'team-item';
-        item.innerHTML = `
-            <span class="name">${member}</span>
-            <div class="actions">
-                <button class="btn btn-delete btn-small" onclick="deleteTeamMember(${index})">Delete</button>
+    const list = document.getElementById('teamList');
+    const count = document.getElementById('teamCount');
+    list.innerHTML = '';
+    appState.teamMembers.forEach(member => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <span>${member}</span>
+            <div class="item-actions">
+                <button class="btn-delete" onclick="removeTeamMember('${member}')">Remove</button>
             </div>
         `;
-        container.appendChild(item);
+        list.appendChild(li);
     });
+    count.textContent = `Total: ${appState.teamMembers.length} kids`;
 }
 
-// ==================== COSTS MANAGEMENT ====================
-
-function updateCosts() {
-    const stallFee = parseFloat(document.getElementById('stallFee').value) || 0;
-    const insurance = parseFloat(document.getElementById('insurance').value) || 0;
-    const squareReader = parseFloat(document.getElementById('squareReader').value) || 0;
-
-    const costs = {
-        stallFee,
-        insurance,
-        squareReader
-    };
-
-    saveCosts(costs);
+// ===== COSTS MANAGEMENT =====
+function saveCosts() {
+    appState.costs.stallFee = parseFloat(document.getElementById('stallFee').value) || 0;
+    appState.costs.insurance = parseFloat(document.getElementById('insurance').value) || 0;
+    appState.costs.squareReader = parseFloat(document.getElementById('squareReader').value) || 0;
+    saveToFirebase();
+    renderTotalCosts();
+    renderAll();
 }
 
-function renderCostsDisplay() {
-    const costs = getCosts();
-    document.getElementById('stallFee').value = costs.stallFee;
-    document.getElementById('insurance').value = costs.insurance;
-    document.getElementById('squareReader').value = costs.squareReader;
-    updateTotalCostsDisplay();
+function renderTotalCosts() {
+    const total = appState.costs.stallFee + appState.costs.insurance + appState.costs.squareReader;
+    document.getElementById('totalCosts').textContent = `Total Shared Costs: $${total.toFixed(2)}`;
 }
 
-function updateTotalCostsDisplay() {
-    const total = calculateTotalCosts();
-    document.getElementById('totalCosts').textContent = total.toFixed(2);
-    document.getElementById('dashCosts').textContent = total.toFixed(2);
+function renderCostInputs() {
+    document.getElementById('stallFee').value = appState.costs.stallFee;
+    document.getElementById('insurance').value = appState.costs.insurance;
+    document.getElementById('squareReader').value = appState.costs.squareReader;
+    renderTotalCosts();
 }
 
-// ==================== PRODUCT MANAGEMENT ====================
-
+// ===== PRODUCTS MANAGEMENT =====
 function addProduct() {
-    const nameInput = document.getElementById('productName');
-    const priceInput = document.getElementById('productPrice');
+    const nameInput = document.getElementById('newProductName');
+    const priceInput = document.getElementById('newProductPrice');
     const name = nameInput.value.trim();
     const price = parseFloat(priceInput.value) || 0;
-
     if (!name) {
-        alert('Please enter a product name.');
+        alert('Please enter a product name');
         return;
     }
-
-    const products = getProducts();
-    const id = Date.now().toString();
-    products.push({ id, name, defaultPrice: price });
-
+    if (appState.products.some(p => p.name === name)) {
+        alert('This product already exists');
+        return;
+    }
+    const product = {
+        id: Date.now().toString(),
+        name: name,
+        defaultPrice: price
+    };
+    appState.products.push(product);
     nameInput.value = '';
     priceInput.value = '';
-    saveProducts(products);
+    saveToFirebase();
+    renderProductList();
+    renderProductButtons();
+    renderSaleProductDropdown();
 }
 
-function deleteProduct(id) {
-    if (!confirm('Delete this product?')) return;
-    const products = getProducts();
-    const filtered = products.filter(p => p.id !== id);
-    saveProducts(filtered);
+function deleteProduct(productId) {
+    appState.products = appState.products.filter(p => p.id !== productId);
+    saveToFirebase();
+    renderProductList();
+    renderProductButtons();
+    renderSaleProductDropdown();
 }
 
 function renderProductList() {
-    const products = getProducts();
-    const container = document.getElementById('productList');
-    container.innerHTML = '';
-
-    if (products.length === 0) {
-        container.innerHTML = '<p style="color: #999; text-align: center;">No products yet. Add one to get started!</p>';
+    const list = document.getElementById('productList');
+    list.innerHTML = '';
+    if (appState.products.length === 0) {
+        list.innerHTML = '<li style="text-align: center; color: #999;">No products added yet</li>';
         return;
     }
-
-    products.forEach(product => {
-        const item = document.createElement('div');
-        item.className = 'product-item';
-        item.innerHTML = `
-            <span class="name">${product.name}</span>
-            ${product.defaultPrice > 0 ? `<span class="price">$${product.defaultPrice.toFixed(2)}</span>` : ''}
-            <div class="actions">
-                <button class="btn btn-delete btn-small" onclick="deleteProduct('${product.id}')">Delete</button>
+    appState.products.forEach(product => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <span>
+                <strong>${product.name}</strong>
+                <br>
+                <small>Default price: $${product.defaultPrice.toFixed(2)}</small>
+            </span>
+            <div class="item-actions">
+                <button class="btn-delete" onclick="deleteProduct('${product.id}')">Delete</button>
             </div>
         `;
-        container.appendChild(item);
+        list.appendChild(li);
     });
 }
 
-function updateProductsInSalesDropdown() {
-    const products = getProducts();
-    const select = document.getElementById('saleProductSelect');
-    select.innerHTML = '<option value="">-- Select a Product --</option>';
-
-    products.forEach(product => {
-        const option = document.createElement('option');
-        option.value = product.id;
-        option.textContent = `${product.name} ${product.defaultPrice > 0 ? '($' + product.defaultPrice.toFixed(2) + ')' : ''}`;
-        select.appendChild(option);
-    });
-}
-
-// ==================== SALES MODE MANAGEMENT ====================
-
-function switchSalesMode(mode) {
-    // Hide all modes
-    document.getElementById('quickSaleMode').classList.remove('active');
-    document.getElementById('detailedSalesMode').classList.remove('active');
-
-    // Show selected mode
-    if (mode === 'quick') {
-        document.getElementById('quickSaleMode').classList.add('active');
-    } else {
-        document.getElementById('detailedSalesMode').classList.add('active');
-    }
-
-    // Update button states
-    document.querySelectorAll('.mode-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    event.target.classList.add('active');
-}
-
-// ==================== QUICK SALE MODE ====================
-
-// Store pending sale info for payment method selection
-let pendingSale = null;
-
-function renderQuickSaleButtons() {
-    const products = getProducts();
-    const container = document.getElementById('quickSaleButtons');
-    container.innerHTML = '';
-
-    if (products.length === 0) {
-        container.innerHTML = '<p style="color: #999; text-align: center; grid-column: 1/-1;">Add products first!</p>';
+function renderProductButtons() {
+    const grid = document.getElementById('productButtons');
+    grid.innerHTML = '';
+    if (appState.products.length === 0) {
+        grid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #999;">No products yet. Add some in the Products tab!</p>';
         return;
     }
-
-    products.forEach(product => {
+    appState.products.forEach(product => {
         const btn = document.createElement('button');
-        btn.className = 'quick-sale-btn';
+        btn.className = 'product-btn';
         btn.innerHTML = `
-            <span class="product-name">${product.name}</span>
-            ${product.defaultPrice > 0 ? `<span class="product-price">$${product.defaultPrice.toFixed(2)}</span>` : '<span class="product-price">Custom Price</span>'}
+            <span class="product-btn-name">${product.name}</span>
+            <span class="product-btn-price">$${product.defaultPrice.toFixed(2)}</span>
         `;
-        btn.onclick = () => showPaymentModal(product);
-        container.appendChild(btn);
+        btn.onclick = () => selectProductForQuickSale(product.id);
+        grid.appendChild(btn);
     });
 }
 
-function showPaymentModal(product) {
-    pendingSale = { productId: product.id, unitPrice: product.defaultPrice || 0, qty: 1 };
-    document.getElementById('paymentProductName').textContent = product.name;
-    document.getElementById('paymentModal').classList.remove('hidden');
+function renderSaleProductDropdown() {
+    const select = document.getElementById('saleProduct');
+    select.innerHTML = '';
+    appState.products.forEach(product => {
+        const option = document.createElement('option');
+        option.value = product.id;
+        option.textContent = product.name;
+        select.appendChild(option);
+    });
+    updateProductPrice();
 }
 
-function closePaymentModal() {
-    document.getElementById('paymentModal').classList.add('hidden');
-    pendingSale = null;
+function updateProductPrice() {
+    const productId = document.getElementById('saleProduct').value;
+    const product = appState.products.find(p => p.id === productId);
+    if (product) {
+        document.getElementById('salePrice').value = product.defaultPrice.toFixed(2);
+    }
 }
 
-function recordSale(paymentMethod) {
-    if (!pendingSale) return;
+// ===== SALES MANAGEMENT =====
+function setSalesMode(mode) {
+    appState.currentSalesMode = mode;
+    document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
+    document.getElementById('quickSaleMode').style.display = mode === 'quick' ? 'block' : 'none';
+    document.getElementById('detailedMode').style.display = mode === 'detailed' ? 'block' : 'none';
+}
 
-    const sale = {
-        id: Date.now().toString(),
-        productId: pendingSale.productId,
-        qty: pendingSale.qty,
-        unitPrice: pendingSale.unitPrice,
-        paymentMethod: paymentMethod,
-        timestamp: new Date().toISOString()
-    };
+function selectProductForQuickSale(productId) {
+    appState.pendingProductId = productId;
+    document.getElementById('paymentModal').style.display = 'flex';
+}
 
-    const sales = getSales();
-    sales.push(sale);
-    saveSales(sales);
+function recordQuickSale(paymentMethod) {
+    const productId = appState.pendingProductId;
+    const product = appState.products.find(p => p.id === productId);
+    if (!product) return;
+    addSale(productId, 1, product.defaultPrice, paymentMethod);
     closePaymentModal();
 }
 
-function adjustLastSaleQty(delta) {
-    const sales = getSales();
-    if (sales.length === 0) return;
-
-    const lastSale = sales[sales.length - 1];
-    lastSale.qty += delta;
-    if (lastSale.qty < 1) lastSale.qty = 1;
-
-    saveSales(sales);
+function closePaymentModal() {
+    document.getElementById('paymentModal').style.display = 'none';
+    appState.pendingProductId = null;
 }
 
-function undoLastSale() {
-    if (!confirm('Undo the last sale?')) return;
-    const sales = getSales();
-    if (sales.length > 0) {
-        sales.pop();
-        saveSales(sales);
+function addDetailedSale() {
+    const productId = document.getElementById('saleProduct').value;
+    const qty = parseInt(document.getElementById('saleQty').value) || 1;
+    const price = parseFloat(document.getElementById('salePrice').value) || 0;
+    const paymentMethod = document.getElementById('salePayment').value;
+    if (qty < 1) {
+        alert('Quantity must be at least 1');
+        return;
     }
+    addSale(productId, qty, price, paymentMethod);
+    document.getElementById('saleQty').value = '1';
+    updateProductPrice();
 }
 
-function updateQuickSaleTotals() {
-    const sales = getSales();
-    let totalRevenue = 0;
-    let cashTotal = 0;
-    let cardTotal = 0;
-
-    sales.forEach(sale => {
-        const amount = sale.qty * sale.unitPrice;
-        totalRevenue += amount;
-        if (sale.paymentMethod === 'Cash') {
-            cashTotal += amount;
-        } else if (sale.paymentMethod === 'Card') {
-            cardTotal += amount;
-        }
-    });
-
-    document.getElementById('quickTotalRevenue').textContent = totalRevenue.toFixed(2);
-    document.getElementById('quickCashTotal').textContent = cashTotal.toFixed(2);
-    document.getElementById('quickCardTotal').textContent = cardTotal.toFixed(2);
-}
-
-// ==================== DETAILED SALES MODE ====================
-
-function addSaleDetailed() {
-    const productId = document.getElementById('saleProductSelect').value;
-    const qty = parseInt(document.getElementById('saleQuantity').value) || 1;
-    const unitPrice = parseFloat(document.getElementById('saleUnitPrice').value) || 0;
-    const paymentMethod = document.getElementById('salePaymentMethod').value;
-
-    if (!productId) {
-        alert('Please select a product.');
-        return;
-    }
-    if (!paymentMethod) {
-        alert('Please select a payment method.');
-        return;
-    }
-    if (unitPrice <= 0) {
-        alert('Please enter a valid price.');
-        return;
-    }
-
+function addSale(productId, qty, unitPrice, paymentMethod) {
     const sale = {
         id: Date.now().toString(),
         productId: productId,
@@ -439,400 +378,493 @@ function addSaleDetailed() {
         paymentMethod: paymentMethod,
         timestamp: new Date().toISOString()
     };
-
-    const sales = getSales();
-    sales.push(sale);
-    saveSales(sales);
-
-    // Reset form
-    document.getElementById('saleProductSelect').value = '';
-    document.getElementById('saleQuantity').value = '1';
-    document.getElementById('saleUnitPrice').value = '';
-    document.getElementById('salePaymentMethod').value = '';
+    appState.sales.push(sale);
+    saveToFirebase();
+    renderSales();
+    checkBreakEven();
 }
 
-function deleteSale(id) {
-    if (!confirm('Delete this sale?')) return;
-    const sales = getSales();
-    const filtered = sales.filter(s => s.id !== id);
-    saveSales(filtered);
+function deleteSale(saleId) {
+    appState.sales = appState.sales.filter(s => s.id !== saleId);
+    saveToFirebase();
+    renderSales();
 }
 
-function renderSalesList() {
-    const sales = getSales();
-    const products = getProducts();
-    const container = document.getElementById('salesList');
-    container.innerHTML = '';
-
-    if (sales.length === 0) {
-        container.innerHTML = '<p style="color: #999; text-align: center;">No sales yet.</p>';
+function undoLastSale() {
+    if (appState.sales.length === 0) {
+        alert('No sales to undo');
         return;
     }
-
-    sales.forEach(sale => {
-        const product = products.find(p => p.id === sale.productId);
-        const productName = product ? product.name : 'Unknown Product';
-        const total = (sale.qty * sale.unitPrice).toFixed(2);
-        const timestamp = new Date(sale.timestamp).toLocaleString();
-
-        const item = document.createElement('div');
-        item.className = 'sales-item';
-        item.innerHTML = `
-            <div class="info">
-                <strong>${productName}</strong>
-                <div class="details">Qty: ${sale.qty} × $${sale.unitPrice.toFixed(2)} = $${total} (${sale.paymentMethod})</div>
-                <div class="details" style="font-size: 0.8em; color: #999;">${timestamp}</div>
-            </div>
-            <div class="actions">
-                <button class="btn btn-delete btn-small" onclick="deleteSale('${sale.id}')">Delete</button>
-            </div>
-        `;
-        container.appendChild(item);
-    });
+    appState.sales.pop();
+    saveToFirebase();
+    renderSales();
 }
 
-// ==================== DASHBOARD ====================
+function adjustQuantity(amount) {
+    if (appState.sales.length === 0) {
+        alert('No sales to adjust');
+        return;
+    }
+    const lastSale = appState.sales[appState.sales.length - 1];
+    lastSale.qty += amount;
+    if (lastSale.qty < 1) {
+        appState.sales.pop();
+    }
+    saveToFirebase();
+    renderSales();
+}
 
-function updateDashboard() {
-    // Update metrics
+function renderSales() {
+    const list = document.getElementById('salesList');
+    list.innerHTML = '';
+    if (appState.sales.length === 0) {
+        list.innerHTML = '<li style="text-align: center; color: #999;">No sales yet</li>';
+    } else {
+        appState.sales.forEach(sale => {
+            const product = appState.products.find(p => p.id === sale.productId);
+            const productName = product ? product.name : 'Unknown';
+            const total = sale.qty * sale.unitPrice;
+            const li = document.createElement('li');
+            li.className = 'sale-item';
+            li.innerHTML = `
+                <div class="sale-info">
+                    <span class="sale-product">${productName}</span>
+                    <span class="sale-details">${sale.qty} × $${sale.unitPrice.toFixed(2)} = $${total.toFixed(2)}</span>
+                    <span class="sale-details">${sale.paymentMethod === 'cash' ? '💵 Cash' : '💳 Card'}</span>
+                </div>
+                <div class="item-actions">
+                    <button class="btn-delete" onclick="deleteSale('${sale.id}')">Delete</button>
+                </div>
+            `;
+            list.appendChild(li);
+        });
+    }
+    updateSalesSummary();
+}
+
+function updateSalesSummary() {
+    const totalRevenue = appState.sales.reduce((sum, sale) => sum + (sale.qty * sale.unitPrice), 0);
+    const cashTotal = appState.sales
+        .filter(sale => sale.paymentMethod === 'cash')
+        .reduce((sum, sale) => sum + (sale.qty * sale.unitPrice), 0);
+    const cardTotal = appState.sales
+        .filter(sale => sale.paymentMethod === 'card')
+        .reduce((sum, sale) => sum + (sale.qty * sale.unitPrice), 0);
+    document.getElementById('totalRevenue').textContent = `$${totalRevenue.toFixed(2)}`;
+    document.getElementById('cashTotal').textContent = `$${cashTotal.toFixed(2)}`;
+    document.getElementById('cardTotal').textContent = `$${cardTotal.toFixed(2)}`;
+}
+
+// ===== CALCULATIONS =====
+function calculateTotalRevenue() {
+    return appState.sales.reduce((sum, sale) => sum + (sale.qty * sale.unitPrice), 0);
+}
+
+function calculateTotalCosts() {
+    return appState.costs.stallFee + appState.costs.insurance + appState.costs.squareReader;
+}
+
+function calculateNetProfit() {
+    return calculateTotalRevenue() - calculateTotalCosts();
+}
+
+function calculatePerKidPayout() {
+    if (appState.teamMembers.length === 0) return 0;
+    return calculateNetProfit() / appState.teamMembers.length;
+}
+
+// ===== DASHBOARD =====
+function renderDashboard() {
     const revenue = calculateTotalRevenue();
     const costs = calculateTotalCosts();
     const profit = calculateNetProfit();
-    const perKidProfit = calculatePerKidPayout();
+    const perKidPayout = calculatePerKidPayout();
 
-    document.getElementById('dashRevenue').textContent = revenue.toFixed(2);
-    document.getElementById('dashCosts').textContent = costs.toFixed(2);
-    document.getElementById('dashProfit').textContent = Math.abs(profit).toFixed(2);
+    document.getElementById('dashRevenue').textContent = `$${revenue.toFixed(2)}`;
+    document.getElementById('dashCosts').textContent = `$${costs.toFixed(2)}`;
+    document.getElementById('dashProfit').textContent = `$${profit.toFixed(2)}`;
 
-    // Update profit display color
-    const profitDisplay = document.getElementById('dashProfitDisplay');
-    if (profit >= 0) {
-        profitDisplay.innerHTML = '$<span id="dashProfit">' + profit.toFixed(2) + '</span>';
-        profitDisplay.style.color = '#667eea';
-    } else {
-        profitDisplay.innerHTML = '-$<span id="dashProfit">' + Math.abs(profit).toFixed(2) + '</span>';
-        profitDisplay.style.color = '#ff6b6b';
-    }
+    const breakevenPercent = costs > 0 ? (revenue / costs) * 100 : 0;
+    document.getElementById('breakevenFill').style.width = Math.min(breakevenPercent, 100) + '%';
+    document.getElementById('breakevenText').textContent = `$${revenue.toFixed(2)} / $${costs.toFixed(2)} (${Math.min(Math.round(breakevenPercent), 100)}%)`;
 
-    // Update break-even meter
-    const breakEvenPercent = calculateBreakEvenPercent();
-    const breakEvenNeeded = calculateBreakEvenNeeded();
-    document.getElementById('breakEvenFill').style.width = breakEvenPercent + '%';
-    document.getElementById('breakEvenText').textContent = 
-        `Need $${breakEvenNeeded.toFixed(2)} more to break even`;
-    document.getElementById('breakEvenPercent').textContent = `${Math.round(breakEvenPercent)}% of target reached`;
+    document.getElementById('profitPotAmount').textContent = `$${profit.toFixed(2)}`;
+    const perKidText = profit < 0 ? `Loss per kid: $${Math.abs(perKidPayout).toFixed(2)}` : `Each kid gets: $${perKidPayout.toFixed(2)}`;
+    document.getElementById('perKidAmount').innerHTML = perKidText;
 
-    // Update profit pot
-    const teamMembers = getTeamMembers();
-    const profitAmountEl = document.getElementById('profitAmount');
-    const perKidEl = document.getElementById('perKidAmount');
+    renderProductChart();
+    checkBreakEven();
+}
 
-    if (profit >= 0) {
-        profitAmountEl.innerHTML = '$' + profit.toFixed(2);
-        profitAmountEl.style.color = '#667eea';
-    } else {
-        profitAmountEl.innerHTML = '-$' + Math.abs(profit).toFixed(2);
-        profitAmountEl.style.color = '#ff6b6b';
-    }
-
-    if (teamMembers.length === 0) {
-        perKidEl.innerHTML = 'Add team members to calculate';
-        perKidEl.style.color = '#666';
-    } else if (perKidProfit >= 0) {
-        perKidEl.innerHTML = '$' + perKidProfit.toFixed(2);
-        perKidEl.style.color = '#667eea';
-    } else {
-        perKidEl.innerHTML = '-$' + Math.abs(perKidProfit).toFixed(2);
-        perKidEl.style.color = '#ff6b6b';
-    }
-
-    // Trigger confetti if profit just became positive
-    if (profit > 0 && localStorage.getItem('confettiTriggered') === 'false') {
+function checkBreakEven() {
+    const profit = calculateNetProfit();
+    const hadShown = sessionStorage.getItem('confettiShown');
+    if (profit > 0 && !hadShown) {
         triggerConfetti();
-        localStorage.setItem('confettiTriggered', 'true');
+        sessionStorage.setItem('confettiShown', 'true');
     }
-
-    // Update product chart
-    updateProductChart();
-
-    // Update top seller
-    updateTopSeller();
 }
 
-function updateProductChart() {
-    const salesByProduct = getSalesByProduct();
-    const container = document.getElementById('productChart');
-    container.innerHTML = '';
+function renderProductChart() {
+    const canvas = document.getElementById('salesChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const chartHeight = canvas.height;
+    const chartWidth = canvas.width;
 
-    const entries = Object.entries(salesByProduct).filter(([_, data]) => data.qty > 0);
-
-    if (entries.length === 0) {
-        container.innerHTML = '<p style="color: #999; text-align: center;">No sales data yet.</p>';
-        return;
-    }
-
-    // Find max for scaling
-    const maxQty = Math.max(...entries.map(([_, data]) => data.qty));
-    const scale = maxQty > 0 ? 300 / maxQty : 1;
-
-    entries.forEach(([_, product]) => {
-        const row = document.createElement('div');
-        row.className = 'chart-row';
-        const barWidth = product.qty * scale;
-        row.innerHTML = `
-            <div class="chart-label">${product.name}</div>
-            <div class="chart-bar-container">
-                <div class="chart-bar" style="width: ${barWidth}px;"></div>
-            </div>
-            <div class="chart-value">${product.qty}</div>
-        `;
-        container.appendChild(row);
+    const productSales = appState.products.map(product => {
+        const units = appState.sales
+            .filter(sale => sale.productId === product.id)
+            .reduce((sum, sale) => sum + sale.qty, 0);
+        return { product, units };
     });
-}
 
-function updateTopSeller() {
-    const topSeller = getTopSellerProduct();
+    const maxUnits = Math.max(...productSales.map(ps => ps.units), 1);
+    ctx.clearRect(0, 0, chartWidth, chartHeight);
+
+    const barWidth = chartWidth / (productSales.length * 1.5);
+    const padding = 40;
+
+    productSales.forEach((ps, index) => {
+        const x = padding + index * (barWidth * 1.5);
+        const barHeight = (ps.units / maxUnits) * (chartHeight - 80);
+        const y = chartHeight - 40 - barHeight;
+        ctx.fillStyle = `hsl(${index * 60}, 70%, 60%)`;
+        ctx.fillRect(x, y, barWidth, barHeight);
+        ctx.fillStyle = '#333';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(ps.product.name, x + barWidth / 2, chartHeight - 10);
+        ctx.fillStyle = '#000';
+        ctx.font = 'bold 14px Arial';
+        ctx.fillText(ps.units, x + barWidth / 2, y - 10);
+    });
+
+    const topSeller = productSales.reduce((max, ps) => ps.units > max.units ? ps : max, { units: 0 });
     const badge = document.getElementById('topSellerBadge');
-
-    if (topSeller && topSeller.qty > 0) {
-        document.getElementById('topSellerName').textContent = `🏆 Top Seller: ${topSeller.name} (${topSeller.qty} sold)`;
-        badge.classList.remove('hidden');
+    if (topSeller.units > 0) {
+        badge.textContent = `⭐ Top Seller: ${topSeller.product.name} (${topSeller.units} units)`;
     } else {
-        badge.classList.add('hidden');
+        badge.textContent = '';
     }
 }
 
-// ==================== CONFETTI ANIMATION ====================
-
+// ===== CONFETTI =====
 function triggerConfetti() {
-    const container = document.getElementById('confetti');
-    container.innerHTML = '';
+    const canvas = document.getElementById('confetti');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
-    // Create 50 confetti pieces
+    const pieces = [];
     for (let i = 0; i < 50; i++) {
-        const confetti = document.createElement('div');
-        confetti.className = 'confetti';
-        confetti.style.left = Math.random() * 100 + '%';
-        confetti.style.backgroundColor = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#ffd700', '#667eea'][Math.floor(Math.random() * 6)];
-        confetti.style.setProperty('--tx', (Math.random() - 0.5) * 200 + 'px');
-        confetti.style.animationDelay = Math.random() * 0.5 + 's';
-        container.appendChild(confetti);
+        pieces.push({
+            x: Math.random() * canvas.width,
+            y: -10,
+            vx: (Math.random() - 0.5) * 4,
+            vy: Math.random() * 4 + 2,
+            life: 1
+        });
     }
 
-    // Clean up confetti after animation
-    setTimeout(() => {
-        container.innerHTML = '';
-    }, 3500);
-}
-
-// ==================== REPORTS ====================
-
-function generateTeamReport() {
-    const costs = getCosts();
-    const teamMembers = getTeamMembers();
-    const products = getProducts();
-    const sales = getSales();
-    const meta = getReportMeta();
-
-    const revenue = calculateTotalRevenue();
-    const totalCosts = calculateTotalCosts();
-    const profit = calculateNetProfit();
-    const topSeller = getTopSellerProduct();
-    const salesByProduct = getSalesByProduct();
-
-    let html = '<div class="report-section">';
-    html += '<h1 style="color: #667eea; font-size: 2em; margin-bottom: 20px;">Team Summary Report</h1>';
-
-    html += '<h3 class="report-title">Event Details</h3>';
-    html += `<p><strong>Event:</strong> ${meta.eventName}</p>`;
-    html += `<p><strong>Date:</strong> ${meta.eventDate}</p>`;
-    html += `<p><strong>Team Members:</strong> ${teamMembers.join(', ') || 'None added'}</p>`;
-
-    html += '<h3 class="report-title">Financial Summary</h3>';
-    html += `<p><strong>Total Revenue:</strong> $${revenue.toFixed(2)}</p>`;
-    html += `<p><strong>Total Shared Costs:</strong> $${totalCosts.toFixed(2)}</p>`;
-    html += '<ul style="margin-left: 20px;">';
-    html += `<li>Stall Fee: $${costs.stallFee.toFixed(2)}</li>`;
-    html += `<li>Insurance: $${costs.insurance.toFixed(2)}</li>`;
-    html += `<li>Square Reader: $${costs.squareReader.toFixed(2)}</li>`;
-    html += '</ul>';
-    html += `<p><strong>Net Profit:</strong> <span style="color: ${profit >= 0 ? '#667eea' : '#ff6b6b'};">$${Math.abs(profit).toFixed(2)}</span></p>`;
-
-    html += '<h3 class="report-title">Product Performance</h3>';
-    html += '<table class="report-table"><thead><tr><th>Product</th><th>Units Sold</th></tr></thead><tbody>';
-    Object.entries(salesByProduct).forEach(([_, product]) => {
-        if (product.qty > 0) {
-            html += `<tr><td>${product.name}</td><td>${product.qty}</td></tr>`;
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (let i = pieces.length - 1; i >= 0; i--) {
+            const p = pieces[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life -= 0.01;
+            p.vy += 0.1;
+            if (p.life <= 0) {
+                pieces.splice(i, 1);
+                continue;
+            }
+            ctx.globalAlpha = p.life;
+            ctx.fillStyle = ['#ff6b6b', '#ffd93d', '#6bcf7f', '#4ecdc4', '#95e1d3'][i % 5];
+            ctx.fillRect(p.x, p.y, 10, 10);
         }
-    });
-    html += '</tbody></table>';
-
-    if (topSeller && topSeller.qty > 0) {
-        html += `<p><strong>🏆 Top Seller:</strong> ${topSeller.name} (${topSeller.qty} units)</p>`;
+        ctx.globalAlpha = 1;
+        if (pieces.length > 0) {
+            requestAnimationFrame(animate);
+        }
     }
-
-    if (meta.notes) {
-        html += '<h3 class="report-title">Notes</h3>';
-        html += `<p>${meta.notes}</p>`;
-    }
-
-    html += '</div>';
-
-    return html;
+    animate();
 }
 
-function generateKidReport(kidName) {
-    const teamMembers = getTeamMembers();
-    const profit = calculateNetProfit();
-    const perKidProfit = calculatePerKidPayout();
-
-    let html = '<div class="page-break"></div>';
-    html += '<div class="report-section">';
-    html += `<h2 style="color: #667eea; font-size: 1.8em; margin-bottom: 20px;">${kidName}'s Earnings Report</h2>`;
-
-    html += '<h3 class="report-title">Team Summary</h3>';
-    html += `<p><strong>Total Team Revenue:</strong> $${calculateTotalRevenue().toFixed(2)}</p>`;
-    html += `<p><strong>Shared Costs:</strong> $${calculateTotalCosts().toFixed(2)}</p>`;
-    html += `<p><strong>Total Team Profit:</strong> $${Math.abs(profit).toFixed(2)} ${profit < 0 ? '(loss)' : ''}</p>`;
-
-    html += '<h3 class="report-title">Your Earnings</h3>';
-    if (profit >= 0) {
-        html += `<p style="font-size: 1.3em; color: #667eea;"><strong>You earned: $${perKidProfit.toFixed(2)}</strong></p>`;
-        html += '<p style="font-size: 1.1em;">Great work at the market! You helped make it a success! 🎉</p>';
-    } else {
-        html += `<p style="font-size: 1.3em; color: #ff6b6b;"><strong>Team loss: $${Math.abs(perKidProfit).toFixed(2)} per person</strong></p>`;
-        html += '<p style="font-size: 1.1em;">Thanks for trying! Better luck next time! 💪</p>';
-    }
-
-    html += '</div>';
-
-    return html;
-}
-
+// ===== REPORTS =====
 function printTeamReport() {
-    const printArea = document.getElementById('printReports');
-    printArea.innerHTML = generateTeamReport();
+    renderReportContent();
     window.print();
 }
 
 function printAllKidReports() {
-    const teamMembers = getTeamMembers();
-    if (teamMembers.length === 0) {
-        alert('Add team members first!');
-        return;
-    }
-
-    const printArea = document.getElementById('printReports');
-    let html = '<div style="page-break-after: avoid;">';
-    html += generateTeamReport();
-    html += '</div>';
-
-    teamMembers.forEach(kid => {
-        html += generateKidReport(kid);
-    });
-
-    printArea.innerHTML = html;
+    renderReportContent();
     window.print();
 }
 
-// ==================== UTILITY FUNCTIONS ====================
+function renderReportContent() {
+    const revenue = calculateTotalRevenue();
+    const costs = calculateTotalCosts();
+    const profit = calculateNetProfit();
 
+    document.getElementById('reportEventDate').value = appState.reportMeta.eventDate;
+    document.getElementById('reportRevenue').textContent = `$${revenue.toFixed(2)}`;
+    document.getElementById('reportStallFee').textContent = `$${appState.costs.stallFee.toFixed(2)}`;
+    document.getElementById('reportInsurance').textContent = `$${appState.costs.insurance.toFixed(2)}`;
+    document.getElementById('reportSquareReader').textContent = `$${appState.costs.squareReader.toFixed(2)}`;
+    document.getElementById('reportTotalCosts').textContent = `$${costs.toFixed(2)}`;
+    document.getElementById('reportNetProfit').textContent = `$${profit.toFixed(2)}`;
+    document.getElementById('reportNotes').value = appState.reportMeta.notes;
+
+    const teamList = document.getElementById('reportTeamList');
+    teamList.innerHTML = '';
+    appState.teamMembers.forEach(member => {
+        const li = document.createElement('li');
+        li.textContent = member;
+        teamList.appendChild(li);
+    });
+
+    const productTable = document.getElementById('reportProductTable');
+    productTable.innerHTML = '';
+    appState.products.forEach(product => {
+        const sales = appState.sales.filter(s => s.productId === product.id);
+        const units = sales.reduce((sum, s) => sum + s.qty, 0);
+        const prodRevenue = sales.reduce((sum, s) => sum + (s.qty * s.unitPrice), 0);
+        const avgPrice = units > 0 ? prodRevenue / units : 0;
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${product.name}</td>
+            <td>${units}</td>
+            <td>$${avgPrice.toFixed(2)}</td>
+            <td>$${prodRevenue.toFixed(2)}</td>
+        `;
+        productTable.appendChild(row);
+    });
+
+    const productSales = appState.products.map(product => {
+        const units = appState.sales
+            .filter(sale => sale.productId === product.id)
+            .reduce((sum, sale) => sum + sale.qty, 0);
+        return { product, units };
+    });
+    const topSeller = productSales.reduce((max, ps) => ps.units > max.units ? ps : max, { units: 0 });
+    const topSellerText = topSeller.units > 0 ? `⭐ Best Seller: ${topSeller.product.name} with ${topSeller.units} units sold` : '';
+    document.getElementById('reportTopSeller').textContent = topSellerText;
+
+    const kidContainer = document.getElementById('kidReportsContainer');
+    kidContainer.innerHTML = '';
+    appState.teamMembers.forEach(memberName => {
+        const perKidPayout = calculatePerKidPayout();
+        const div = document.createElement('div');
+        div.className = 'kid-report-page';
+        div.innerHTML = `
+            <h1>${memberName}'s Earnings Report</h1>
+            <p style="font-size: 1.2rem; margin-bottom: 2rem;">Glenferrie Festival</p>
+            <h2>Financials</h2>
+            <table class="report-table" style="margin-bottom: 2rem;">
+                <tr>
+                    <td>Team Total Revenue</td>
+                    <td>$${revenue.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td>Shared Costs</td>
+                    <td>$${costs.toFixed(2)}</td>
+                </tr>
+                <tr style="background: #e8f5e9; font-weight: bold;">
+                    <td>Net Profit / Loss</td>
+                    <td>$${profit.toFixed(2)}</td>
+                </tr>
+            </table>
+            <div class="kid-report-message" style="font-size: 1.8rem; padding: 2rem; background: #fff3e0; border-radius: 10px; margin-bottom: 2rem;">
+                ${profit < 0 ? `Loss per kid: $${Math.abs(perKidPayout).toFixed(2)}` : `You earned: $${perKidPayout.toFixed(2)}`}
+            </div>
+            <p style="font-size: 1.2rem; text-align: center; margin-top: 2rem; color: #4caf50; font-weight: bold;">
+                🎉 Great work at the market! 🎉
+            </p>
+        `;
+        kidContainer.appendChild(div);
+    });
+    document.getElementById('printContent').style.display = 'block';
+}
+
+// ===== UTILITIES =====
 function loadDemoData() {
     if (!confirm('Load demo data? This will replace current data.')) return;
 
-    const demoTeamMembers = ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve'];
-    const demoProducts = [
-        { id: '1', name: 'Miniature Dragon', defaultPrice: 15 },
-        { id: '2', name: 'Fidget Spinner', defaultPrice: 8 },
-        { id: '3', name: 'Phone Stand', defaultPrice: 12 },
-        { id: '4', name: 'Puzzle Box', defaultPrice: 20 },
-        { id: '5', name: 'Tiny Plant Pot', defaultPrice: 10 }
+    appState.teamMembers = ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve'];
+    appState.products = [
+        { id: 'prod1', name: 'Miniature Dragon', defaultPrice: 15 },
+        { id: 'prod2', name: 'Fidget Spinner', defaultPrice: 8 },
+        { id: 'prod3', name: 'Phone Stand', defaultPrice: 12 },
+        { id: 'prod4', name: 'Puzzle Box', defaultPrice: 20 },
+        { id: 'prod5', name: 'Tiny Plant Pot', defaultPrice: 10 }
     ];
-
-    const demoSales = [
-        { id: '1', productId: '1', qty: 8, unitPrice: 15, paymentMethod: 'Cash', timestamp: new Date().toISOString() },
-        { id: '2', productId: '2', qty: 15, unitPrice: 8, paymentMethod: 'Card', timestamp: new Date().toISOString() },
-        { id: '3', productId: '3', qty: 6, unitPrice: 12, paymentMethod: 'Cash', timestamp: new Date().toISOString() },
-        { id: '4', productId: '4', qty: 4, unitPrice: 20, paymentMethod: 'Card', timestamp: new Date().toISOString() },
-        { id: '5', productId: '5', qty: 10, unitPrice: 10, paymentMethod: 'Cash', timestamp: new Date().toISOString() },
-        { id: '6', productId: '1', qty: 3, unitPrice: 15, paymentMethod: 'Card', timestamp: new Date().toISOString() },
-        { id: '7', productId: '2', qty: 7, unitPrice: 8, paymentMethod: 'Cash', timestamp: new Date().toISOString() }
+    appState.sales = [
+        { id: 's1', productId: 'prod1', qty: 8, unitPrice: 15, paymentMethod: 'Cash', timestamp: new Date().toISOString() },
+        { id: 's2', productId: 'prod2', qty: 15, unitPrice: 8, paymentMethod: 'Card', timestamp: new Date().toISOString() },
+        { id: 's3', productId: 'prod3', qty: 6, unitPrice: 12, paymentMethod: 'Cash', timestamp: new Date().toISOString() },
+        { id: 's4', productId: 'prod4', qty: 4, unitPrice: 20, paymentMethod: 'Card', timestamp: new Date().toISOString() },
+        { id: 's5', productId: 'prod5', qty: 10, unitPrice: 10, paymentMethod: 'Cash', timestamp: new Date().toISOString() },
+        { id: 's6', productId: 'prod1', qty: 3, unitPrice: 15, paymentMethod: 'Card', timestamp: new Date().toISOString() },
+        { id: 's7', productId: 'prod2', qty: 7, unitPrice: 8, paymentMethod: 'Cash', timestamp: new Date().toISOString() }
     ];
+    appState.costs = { stallFee: 50, insurance: 25, squareReader: 10 };
+    appState.reportMeta = { eventDate: new Date().toISOString().split('T')[0], notes: '' };
 
-    localStorage.setItem('teamMembers', JSON.stringify(demoTeamMembers));
-    localStorage.setItem('products', JSON.stringify(demoProducts));
-    localStorage.setItem('sales', JSON.stringify(demoSales));
-    localStorage.setItem('confettiTriggered', 'false');
-
-    updateUI();
+    saveToFirebase();
+    renderAll();
     alert('Demo data loaded! Check the dashboard to see results.');
 }
 
-function confirmReset() {
-    if (!confirm('Reset ALL data? This cannot be undone!')) return;
+function resetAllData() {
+    if (!confirm('Delete ALL data? This cannot be undone!')) return;
+    if (!confirm('Are you absolutely sure? This will permanently erase everything!')) return;
+
+    appState.teamMembers = [];
+    appState.products = [];
+    appState.sales = [];
+    appState.costs = { stallFee: 0, insurance: 0, squareReader: 0 };
+    appState.reportMeta = { eventDate: '', notes: '' };
+
+    saveToFirebase();
     localStorage.clear();
-    initializeApp();
-    updateUI();
+    renderAll();
     alert('All data has been reset.');
 }
 
-// ==================== UI UPDATES ====================
-
-function updateUI() {
-    // Update all UI elements
+function renderAll() {
     renderTeamList();
     renderProductList();
-    renderCostsDisplay();
-    updateProductsInSalesDropdown();
-    renderQuickSaleButtons();
-    updateQuickSaleTotals();
-    renderSalesList();
-    updateDashboard();
+    renderProductButtons();
+    renderCostInputs();
+    renderTotalCosts();
+    renderSaleProductDropdown();
+    renderSales();
+    renderDashboard();
 }
 
-// ==================== EVENT LISTENERS ====================
+// ===== UI LISTENERS & INITIALIZATION =====
+function setupUIListeners() {
+    // Team section
+    const addTeamBtn = document.getElementById('addTeamBtn');
+    if (addTeamBtn) {
+        addTeamBtn.addEventListener('click', addTeamMember);
+        document.getElementById('newMemberName').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addTeamMember();
+        });
+    }
 
-document.addEventListener('DOMContentLoaded', () => {
-    initializeApp();
-    updateUI();
+    // Products section
+    const addProductBtn = document.getElementById('addProductBtn');
+    if (addProductBtn) {
+        addProductBtn.addEventListener('click', addProduct);
+        document.getElementById('productName').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addProduct();
+        });
+        document.getElementById('productPrice').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addProduct();
+        });
+    }
+
+    // Costs section
+    const updateCostsBtn = document.getElementById('updateCostsBtn');
+    if (updateCostsBtn) {
+        updateCostsBtn.addEventListener('click', saveCosts);
+    }
+
+    // Sales mode buttons
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const mode = e.target.getAttribute('data-mode');
+            setSalesMode(mode);
+        });
+    });
+
+    // Sales detailed section
+    const addDetailedSaleBtn = document.getElementById('addDetailedSaleBtn');
+    if (addDetailedSaleBtn) {
+        addDetailedSaleBtn.addEventListener('click', addDetailedSale);
+    }
+
+    // Quick sale buttons - re-attach on render
+    attachProductButtonListeners();
+
+    // Payment modal
+    const paymentModal = document.getElementById('paymentModal');
+    if (paymentModal) {
+        paymentModal.addEventListener('click', (e) => {
+            if (e.target.id === 'paymentModal') closePaymentModal();
+        });
+        document.querySelectorAll('.payment-option').forEach(option => {
+            option.addEventListener('click', (e) => {
+                const method = e.target.getAttribute('data-method');
+                recordQuickSale(method);
+            });
+        });
+    }
 
     // Tab navigation
-    document.querySelectorAll('.tab-button').forEach(button => {
-        button.addEventListener('click', (e) => {
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.addEventListener('click', (e) => {
             const tabName = e.target.getAttribute('data-tab');
-            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-            document.getElementById(tabName).classList.add('active');
-            e.target.classList.add('active');
+            switchTab(tabName);
         });
     });
 
-    // Sales mode toggle
-    document.querySelectorAll('.mode-btn').forEach(button => {
-        button.addEventListener('click', (e) => {
-            const mode = e.target.getAttribute('data-mode');
-            switchSalesMode(mode);
-        });
+    // Reports
+    const printTeamReportBtn = document.getElementById('printTeamReportBtn');
+    if (printTeamReportBtn) {
+        printTeamReportBtn.addEventListener('click', printTeamReport);
+    }
+
+    const printAllKidReportsBtn = document.getElementById('printAllKidReportsBtn');
+    if (printAllKidReportsBtn) {
+        printAllKidReportsBtn.addEventListener('click', printAllKidReports);
+    }
+
+    // Utilities
+    const loadDemoBtn = document.getElementById('loadDemoBtn');
+    if (loadDemoBtn) {
+        loadDemoBtn.addEventListener('click', loadDemoData);
+    }
+
+    const resetDataBtn = document.getElementById('resetDataBtn');
+    if (resetDataBtn) {
+        resetDataBtn.addEventListener('click', resetAllData);
+    }
+}
+
+function attachProductButtonListeners() {
+    document.querySelectorAll('.product-btn').forEach(btn => {
+        btn.removeEventListener('click', handleProductBtnClick);
+        btn.addEventListener('click', handleProductBtnClick);
     });
+}
 
-    // Enter key listeners for form inputs
-    document.getElementById('newTeamMember').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') addTeamMember();
+function handleProductBtnClick(e) {
+    const productId = e.target.getAttribute('data-product-id');
+    selectProductForQuickSale(productId);
+}
+
+// Reinitialize the main DOMContentLoaded is already set up above, so we just need to complete it
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+    initializeApp();
+}
+
+function initializeApp() {
+    loadFromStorage();
+    setupFirebaseListeners();
+    setupUIListeners();
+    checkOnlineStatus();
+    
+    window.addEventListener('online', () => {
+        updateSyncStatus();
+        saveToFirebase();
     });
-
-    document.getElementById('productName').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') addProduct();
-    });
-
-    // Close modal when clicking outside
-    document.getElementById('paymentModal').addEventListener('click', (e) => {
-        if (e.target.id === 'paymentModal') closePaymentModal();
-    });
-
-    // Auto-update when sales change
-    setInterval(() => {
-        updateQuickSaleTotals();
-    }, 1000);
-});
-
-// For debugging (optional): window.debugData = () => console.log({ team: getTeamMembers(), products: getProducts(), sales: getSales(), costs: getCosts() });
+    
+    window.addEventListener('offline', updateSyncStatus);
+    
+    renderAll();
+}
