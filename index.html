@@ -241,12 +241,14 @@
                     <canvas id="salesChart" width="600" height="240" style="width:100%; max-width:600px; height:240px; background:#fff; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.08);"></canvas>
                 </div>
                 <button class="btn btn-primary" onclick="printReport()">🖨️ Print Report</button>
+                <button class="btn btn-primary" onclick="downloadReportAsPDF()" style="margin-left:10px;">📥 Download PDF</button>
             </div>
         </section>
     </div>
 
     <canvas id="confettiCanvas" class="confetti-canvas"></canvas>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script>
         console.log('✅ Market Stall App (Offline Mode)');
 
@@ -797,6 +799,97 @@
             window.print();
         }
 
+        function downloadReportAsPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+            let yPos = 15;
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const margin = 10;
+            const lineHeight = 6;
+
+            // Summary page
+            doc.setFontSize(16);
+            doc.text('Market Stall Report', margin, yPos);
+            yPos += 10;
+
+            doc.setFontSize(12);
+            const revenue = appData.sales.reduce((sum, s) => sum + s.amount, 0);
+            const costs = appData.costs.stallFee + appData.costs.insurance + appData.costs.squareReader;
+            const profit = revenue - costs;
+            const cashTotal = appData.sales.filter(s => s.paymentMethod === 'Cash').reduce((sum, s) => sum + s.amount, 0);
+            const cardTotal = appData.sales.filter(s => s.paymentMethod === 'Card').reduce((sum, s) => sum + s.amount, 0);
+
+            const summaryLines = [
+                `Event: ${appData.reportMeta.eventName}`,
+                `Date: ${appData.reportMeta.eventDate}`,
+                '',
+                `Total Revenue: $${revenue.toFixed(2)}`,
+                `Cash Sales: $${cashTotal.toFixed(2)}`,
+                `Card Sales: $${cardTotal.toFixed(2)}`,
+                `Total Costs: $${costs.toFixed(2)}`,
+                `  - Stall Fee: $${appData.costs.stallFee.toFixed(2)}`,
+                `  - Insurance: $${appData.costs.insurance.toFixed(2)}`,
+                `  - Square Reader: $${appData.costs.squareReader.toFixed(2)}`,
+                '',
+                `Net Profit: $${profit.toFixed(2)}`,
+                `Total Sales: ${appData.sales.length}`,
+                '',
+                `Notes: ${appData.reportMeta.notes || 'None'}`
+            ];
+
+            summaryLines.forEach(line => {
+                if (yPos > pageHeight - margin) {
+                    doc.addPage();
+                    yPos = margin;
+                }
+                doc.text(line, margin, yPos);
+                yPos += lineHeight;
+            });
+
+            // Per-kid pages
+            if (appData.teamMembers && appData.teamMembers.length > 0) {
+                doc.addPage();
+                yPos = margin;
+
+                appData.teamMembers.forEach((member, idx) => {
+                    if (idx > 0) {
+                        doc.addPage();
+                        yPos = margin;
+                    }
+
+                    doc.setFontSize(14);
+                    doc.text(`Individual Summary — ${member}`, margin, yPos);
+                    yPos += 8;
+
+                    doc.setFontSize(11);
+                    const share = profit > 0 ? (profit / appData.teamMembers.length) : 0;
+                    const perKidLines = [
+                        `Event: ${appData.reportMeta.eventName}`,
+                        `Total Event Revenue: $${revenue.toFixed(2)}`,
+                        `Total Costs: $${costs.toFixed(2)}`,
+                        `Net Profit: $${profit.toFixed(2)}`,
+                        '',
+                        `Share of Profit Pot: $${share.toFixed(2)}`,
+                        '',
+                        `Notes: ${appData.reportMeta.notes || 'None'}`
+                    ];
+
+                    perKidLines.forEach(line => {
+                        if (yPos > pageHeight - margin) {
+                            doc.addPage();
+                            yPos = margin;
+                        }
+                        doc.text(line, margin, yPos);
+                        yPos += lineHeight;
+                    });
+                });
+            }
+
+            // Download
+            const filename = `Market_Stall_Report_${appData.reportMeta.eventDate || 'report'}.pdf`;
+            doc.save(filename);
+        }
+
         function loadDemoData() {
             appData.teamMembers = ['Alice', 'Bob', 'Charlie'];
             appData.products = [
@@ -855,7 +948,7 @@
         renderAll();
         updateSyncStatus();
         // TEMP: auto-load demo data for preview. Remove this line when finished testing.
-        loadDemoData(); renderAll(); updateDashboard(); updateReportDisplay();
+        // loadDemoData(); renderAll(); updateDashboard(); updateReportDisplay();
         console.log('✅ App ready (Offline Mode)! Demo data loaded');
     </script>
 </body>
