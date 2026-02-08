@@ -905,26 +905,47 @@
             // Add mini sales chart from dashboard
             const miniChart = document.getElementById('miniSalesChart');
             if (miniChart) {
-                if (yPos > pageHeight - margin - 80) {
+                if (yPos > pageHeight - margin - 35) {
                     doc.addPage();
                     yPos = margin;
                 }
                 yPos += 5;
                 doc.setFontSize(11);
-                doc.text('Dashboard Sales Chart', margin, yPos);
-                yPos += 5;
+                doc.text('Break-even Progress', margin, yPos);
+                yPos += 6;
+                
+                // Create canvas for break-even bar
+                const breakEvenCanvas = document.createElement('canvas');
+                breakEvenCanvas.width = 600;
+                breakEvenCanvas.height = 60;
+                const ctx = breakEvenCanvas.getContext('2d');
+                ctx.fillStyle = '#f0f0f0';
+                ctx.fillRect(0, 0, 600, 40);
+                ctx.fillStyle = breakPct >= 100 ? '#4caf50' : '#667eea';
+                ctx.fillRect(0, 0, (breakPct / 100) * 600, 40);
+                ctx.strokeStyle = '#ddd';
+                ctx.strokeRect(0, 0, 600, 40);
+                ctx.fillStyle = '#333';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(`${breakPct.toFixed(0)}%`, 300, 28);
+                
                 try {
-                    const miniChartImage = miniChart.toDataURL('image/png');
+                    const breakEvenImage = breakEvenCanvas.toDataURL('image/png');
                     const chartWidth = pageWidth - (margin * 2);
-                    const chartHeight = (chartWidth / 400) * 120;
-                    doc.addImage(miniChartImage, 'PNG', margin, yPos, chartWidth, chartHeight);
+                    const chartHeight = (chartWidth / 600) * 60;
+                    doc.addImage(breakEvenImage, 'PNG', margin, yPos, chartWidth, chartHeight);
                     yPos += chartHeight + 3;
                 } catch (e) {
-                    console.log('Could not embed mini chart:', e);
+                    console.log('Could not embed break-even bar:', e);
                 }
+
+                doc.setFontSize(9);
+                doc.text(breakPct >= 100 ? `Status: Reached break-even` : `Remaining to break-even: $${Math.max(0, (costs - revenue)).toFixed(2)}`, margin, yPos);
+                yPos += 5;
             }
 
-            // Add full sales chart from reports
+            // Add full sales chart from reports (single chart only)
             const canvas = document.getElementById('salesChart');
             if (canvas) {
                 if (yPos > pageHeight - margin - 120) {
@@ -933,7 +954,7 @@
                 }
                 yPos += 5;
                 doc.setFontSize(11);
-                doc.text('Detailed Sales Chart', margin, yPos);
+                doc.text('Sales Chart by Product', margin, yPos);
                 yPos += 5;
                 try {
                     const chartImage = canvas.toDataURL('image/png');
