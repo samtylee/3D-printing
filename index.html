@@ -422,10 +422,14 @@
         }
 
         function updateLastSaleInfo() {
+            const el = document.getElementById('lastSaleInfo');
+            if (!el) return;
             if (appData.sales.length > 0) {
                 const last = appData.sales[appData.sales.length - 1];
                 const product = appData.products.find(p => p.id == last.productId);
-                document.getElementById('lastSaleInfo').textContent = `${product?.name || 'Unknown'} x${last.qty} (${last.paymentMethod})`;
+                el.textContent = `${product?.name || 'Unknown'} x${last.qty} (${last.paymentMethod})`;
+            } else {
+                el.textContent = 'No sales yet';
             }
         }
 
