@@ -759,6 +759,7 @@
             const inventoryMetrics = computeInventoryMetrics();
             const totalUnitsSold = inventoryMetrics.reduce((sum, m) => sum + m.quantitySold, 0);
             if (cEl) cEl.textContent = totalUnitsSold;
+            if (dashCount) dashCount.textContent = totalUnitsSold;
 
             // Per-kid payout (can be negative if loss)
             const perKid = appData.teamMembers && appData.teamMembers.length > 0 ? (profit / appData.teamMembers.length) : 0;
