@@ -40,9 +40,7 @@
         select { padding: 10px; margin: 5px; border: 1px solid #ddd; border-radius: 3px; font-size: 14px; }
         textarea { padding: 10px; margin: 5px; border: 1px solid #ddd; border-radius: 3px; font-size: 14px; width: 100%; font-family: Arial; }
     </style>
-    <!-- Firebase SDK (compat builds for global namespace) -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
+    </style>
 </head>
 <body>
     <script>console.log('✅ HTML loaded');</script>
@@ -206,35 +204,7 @@
     </div>
 
     <script>
-        console.log('✅ Script section started');
-        
-        // Firebase config (project: d-printing-8c673)
-        const firebaseConfig = {
-            apiKey: "AIzaSyBfUIQlBxfWq-YhvQJt6YIwKEyXG20K8Pg",
-            authDomain: "d-printing-8c673.firebaseapp.com",
-            databaseURL: "https://d-printing-8c673-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "d-printing-8c673",
-            storageBucket: "d-printing-8c673.firebasestorage.app",
-            messagingSenderId: "831638904366",
-            appId: "1:831638904366:web:a8ecd84d6f9ad7bd7a09bf",
-            measurementId: "G-5R6FPS4D9S"
-        };
-
-        let firebaseReady = false;
-        let db = null;
-
-        try {
-            if (typeof firebase !== 'undefined') {
-                firebase.initializeApp(firebaseConfig);
-                db = firebase.database();
-                firebaseReady = true;
-                console.log('✅ Firebase initialized');
-            } else {
-                console.log('Firebase SDK not loaded');
-            }
-        } catch (e) {
-            console.warn('Firebase init error', e);
-        }
+        console.log('✅ Market Stall App (Offline Mode)');
 
         let appData = {
             teamMembers: [],
@@ -265,39 +235,14 @@
             } catch(e){}
         }
 
-        // Firebase helpers
-        function saveToFirebase() {
-            if (!firebaseReady || !db) return;
-            try { db.ref('/state').set(appData); } catch(e) { console.warn('saveToFirebase failed', e); }
-        }
-
-        function setupFirebaseListeners() {
-            if (!firebaseReady || !db) return;
-            const ref = db.ref('/state');
-            ref.on('value', (snap) => {
-                const val = snap.val();
-                if (val) {
-                    appData = val;
-                    saveLocal();
-                    renderAll();
-                }
-            });
-            console.log('Firebase listeners attached');
-        }
+        // No Firebase helpers needed - localStorage only
 
         function updateSyncStatus() {
             const dot = document.getElementById('syncStatus');
             const text = document.getElementById('syncText');
-            const online = navigator.onLine && firebaseReady;
-            if (online) {
-                dot.classList.remove('offline');
-                dot.style.background = '#4caf50';
-                text.textContent = 'Live Sync ✓';
-            } else {
-                dot.classList.add('offline');
-                dot.style.background = '#ff9800';
-                text.textContent = firebaseReady ? 'Offline Mode' : 'Local Mode';
-            }
+            dot.classList.add('offline');
+            dot.style.background = '#4caf50';
+            text.textContent = 'Offline (iPad)';
         }
 
         // UI and data functions (mutate appData then save)
@@ -318,7 +263,7 @@
                 appData.teamMembers.push(name);
                 input.value = '';
                 renderTeamList();
-                saveLocal(); saveToFirebase();
+                saveLocal();
             }
         }
 
@@ -333,7 +278,7 @@
         function removeTeamMember(i) {
             appData.teamMembers.splice(i, 1);
             renderTeamList();
-            saveLocal(); saveToFirebase();
+            saveLocal();
         }
 
         function addProduct() {
@@ -345,7 +290,7 @@
                 document.getElementById('productName').value = '';
                 document.getElementById('productPrice').value = '';
                 renderProducts(); updateProductSelect(); renderQuickSaleButtons();
-                saveLocal(); saveToFirebase();
+                saveLocal();
             }
         }
 
@@ -360,7 +305,7 @@
         function removeProduct(id) {
             appData.products = appData.products.filter(p => p.id !== id);
             renderProducts(); updateProductSelect(); renderQuickSaleButtons();
-            saveLocal(); saveToFirebase();
+            saveLocal();
         }
 
         function updateProductSelect() {
@@ -416,7 +361,7 @@
                 });
                 closePaymentModal();
                 renderSales(); updateDashboard();
-                saveLocal(); saveToFirebase();
+                saveLocal();
             }
         }
 
@@ -438,7 +383,7 @@
                 document.getElementById('saleProductSelect').value = '';
                 document.getElementById('salePaymentMethod').value = '';
                 renderSales(); updateDashboard();
-                saveLocal(); saveToFirebase();
+                saveLocal();
             }
         }
 
@@ -448,7 +393,7 @@
                 last.qty += delta;
                 last.amount = last.qty * last.price;
                 renderSales(); updateDashboard();
-                saveLocal(); saveToFirebase();
+                saveLocal();
             }
         }
 
@@ -456,7 +401,7 @@
             if (appData.sales.length > 0) {
                 appData.sales.pop();
                 renderSales(); updateDashboard();
-                saveLocal(); saveToFirebase();
+                saveLocal();
             }
         }
 
@@ -472,7 +417,7 @@
         function removeSale(i) {
             appData.sales.splice(i, 1);
             renderSales(); updateDashboard();
-            saveLocal(); saveToFirebase();
+            saveLocal();
         }
 
         function updateDashboard() {
@@ -515,7 +460,7 @@
             const totalEl = document.getElementById('totalCosts');
             if (totalEl) totalEl.textContent = total.toFixed(2);
             updateDashboard();
-            saveLocal(); saveToFirebase();
+            saveLocal();
         }
 
         function saveReportMeta() {
@@ -523,7 +468,7 @@
             appData.reportMeta.eventDate = document.getElementById('eventDate').value;
             appData.reportMeta.notes = document.getElementById('eventNotes').value;
             updateReportDisplay();
-            saveLocal(); saveToFirebase();
+            saveLocal();
         }
 
         function updateReportDisplay() {
@@ -570,7 +515,7 @@
                 notes: "Demo data loaded"
             };
             renderAll();
-            saveLocal(); saveToFirebase();
+            saveLocal();
         }
 
         function renderAll() {
@@ -590,9 +535,9 @@
 
         function resetData() {
             if (confirm('Reset all data?')) {
-                appData = { teamMembers: [], products: [], sales: [] };
+                appData = { teamMembers: [], products: [], sales: [], costs: { stallFee: 175, insurance: 50, squareReader: 50 }, reportMeta: { eventName: 'Glenferrie Festival', eventDate: new Date().toISOString().split('T')[0], notes: '' }, currentSalesMode: 'quick', pendingProductId: null };
                 renderAll();
-                saveLocal(); saveToFirebase();
+                saveLocal();
             }
         }
 
@@ -604,17 +549,12 @@
             });
         });
 
-        // Initialize: load local then attach Firebase
+        // Initialize: load from localStorage
         console.log('Initializing app...');
         loadLocal();
         renderAll();
-        if (firebaseReady) setupFirebaseListeners();
         updateSyncStatus();
-        console.log('✅ App ready!');
-
-        // Listen for online/offline
-        window.addEventListener('online', () => { updateSyncStatus(); saveToFirebase(); });
-        window.addEventListener('offline', updateSyncStatus);
+        console.log('✅ App ready (Offline Mode)!');
     </script>
 </body>
 </html>
