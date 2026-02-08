@@ -354,8 +354,16 @@
             const grid = document.getElementById('quickSaleButtons');
             if (!grid) return;
             grid.innerHTML = appData.products.map(p => 
-                `<button class="product-btn" onclick="openQuantityModal(${p.id}, '${p.name}', ${p.price})">${p.name}<br>$${p.price.toFixed(2)}</button>`
+                `<button class="product-btn" data-product-id="${p.id}" onclick="handleProductClick(this)">${p.name}<br>$${p.price.toFixed(2)}</button>`
             ).join('');
+        }
+
+        function handleProductClick(button) {
+            const productId = parseInt(button.getAttribute('data-product-id'));
+            const product = appData.products.find(p => p.id === productId);
+            if (product) {
+                openQuantityModal(product.id, product.name, product.price);
+            }
         }
 
         function openQuantityModal(productId, productName, price) {
