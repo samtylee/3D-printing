@@ -735,10 +735,8 @@
             const cashTotal = appData.sales.filter(s => s.paymentMethod === 'Cash').reduce((sum, s) => sum + s.amount, 0);
             const cardTotal = appData.sales.filter(s => s.paymentMethod === 'Card').reduce((sum, s) => sum + s.amount, 0);
             
-            const teamMembersList = appData.teamMembers && appData.teamMembers.length > 0 ? appData.teamMembers.join(', ') : 'None';
             const html = `
                 <p><strong>Team:</strong> ${appData.teamName}</p>
-                <p><strong>Team Members:</strong> ${teamMembersList}</p>
                 <p><strong>Event:</strong> ${appData.reportMeta.eventName}</p>
                 <p><strong>Date:</strong> ${appData.reportMeta.eventDate}</p>
                 <p><strong>Total Revenue:</strong> $${revenue.toFixed(2)}</p>
@@ -766,6 +764,34 @@
             }
 
             drawSalesChart(productSales);
+
+            // Per-kid print pages (simple equal split of profit pot)
+            const extras = document.getElementById('reportExtras');
+            const perKidContainerId = 'perKidPages';
+            const prev = document.getElementById(perKidContainerId);
+            if (prev) prev.remove();
+            const perKidDiv = document.createElement('div');
+            perKidDiv.id = perKidContainerId;
+            const totalRevenue = appData.sales.reduce((sum, s) => sum + s.amount, 0);
+            const totalCosts = appData.costs.stallFee + appData.costs.insurance + appData.costs.squareReader;
+            const netProfit = totalRevenue - totalCosts;
+            if (appData.teamMembers && appData.teamMembers.length > 0) {
+                appData.teamMembers.forEach((m) => {
+                    const share = netProfit > 0 ? (netProfit / appData.teamMembers.length) : 0;
+                    const section = document.createElement('div');
+                    section.className = 'print-page';
+                    section.innerHTML = `
+                        <h3>Individual Summary — ${m}</h3>
+                        <p><strong>Event:</strong> ${appData.reportMeta.eventName}</p>
+                        <p><strong>Share of Profit Pot:</strong> $${share.toFixed(2)}</p>
+                        <p><strong>Total Event Revenue:</strong> $${totalRevenue.toFixed(2)}</p>
+                        <p><strong>Total Costs:</strong> $${totalCosts.toFixed(2)}</p>
+                        <p><strong>Notes:</strong> ${appData.reportMeta.notes || 'None'}</p>
+                    `;
+                    perKidDiv.appendChild(section);
+                });
+            }
+            if (extras) extras.appendChild(perKidDiv);
         }
 
         function drawSalesChart(productSales) {
@@ -835,9 +861,6 @@
             // Event details
             doc.setFontSize(11);
             doc.text(`Team: ${appData.teamName}`, margin, yPos);
-            yPos += lineHeight;
-            const teamMembersList = appData.teamMembers && appData.teamMembers.length > 0 ? appData.teamMembers.join(', ') : 'None';
-            doc.text(`Team Members: ${teamMembersList}`, margin, yPos);
             yPos += lineHeight;
             doc.text(`Event: ${appData.reportMeta.eventName}`, margin, yPos);
             yPos += lineHeight;
@@ -961,7 +984,40 @@
                 }
             }
 
-            // No per-kid pages
+            // Per-kid pages
+            if (appData.teamMembers && appData.teamMembers.length > 0) {
+                doc.addPage();
+                yPos = margin;
+
+                appData.teamMembers.forEach((member, idx) => {
+                    if (idx > 0) {
+                        doc.addPage();
+                        yPos = margin;
+                    }
+
+                    doc.setFontSize(14);
+                    doc.text(`Individual Summary — ${member}`, margin, yPos);
+                    yPos += 8;
+
+                    doc.setFontSize(11);
+                    const perKidLines = [
+                        `Event: ${appData.reportMeta.eventName}`,
+                        `Date: ${appData.reportMeta.eventDate}`,
+                        '',
+                        `Total Event Revenue: $${revenue.toFixed(2)}`,
+                        `Total Costs: $${costs.toFixed(2)}`,
+                        `Net Profit: $${profit.toFixed(2)}`,
+                        `Team Members: ${appData.teamMembers.length}`,
+                        '',
+                        `Share of Profit Pot: $${perKid.toFixed(2)}`,
+                        '',
+                        `Notes: ${appData.reportMeta.notes || 'None'}`
+                    ];
+
+                    perKidLines.forEach(line => {
+                        if (yPos > pageHeight - margin) {
+                            doc.addPage();
+                            yPos = margin;
                         }
                         doc.text(line, margin, yPos);
                         yPos += lineHeight;
