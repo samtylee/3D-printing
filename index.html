@@ -499,6 +499,10 @@
                     return;
                 }
                 
+                // Defensive: ensure arrays exist
+                if (!appData.products) appData.products = [];
+                if (!appData.productsBrought) appData.productsBrought = [];
+                
                 const id = Date.now();
                 appData.products.push({ id, name, price });
                 appData.productsBrought.push({ productId: id, quantityBrought });
