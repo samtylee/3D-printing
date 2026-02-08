@@ -26,6 +26,9 @@
         .team-list { margin: 10px 0; padding: 10px; background: white; border-radius: 3px; min-height: 30px; }
         .team-member { background: #e3f2fd; padding: 10px; margin: 5px 0; border-radius: 3px; display: flex; justify-content: space-between; align-items: center; }
     </style>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasecdn/10.7.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasecdn/10.7.0/firebase-database.js"></script>
 </head>
 <body>
     <script>console.log('✅ HTML loaded');</script>
@@ -108,32 +111,95 @@
     <script>
         console.log('✅ Script section started');
         
+        // Firebase config (project: d-printing-8c673)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBfUIQlBxfWq-YhvQJt6YIwKEyXG20K8Pg",
+            authDomain: "d-printing-8c673.firebaseapp.com",
+            databaseURL: "https://d-printing-8c673-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "d-printing-8c673",
+            storageBucket: "d-printing-8c673.firebasestorage.app",
+            messagingSenderId: "831638904366",
+            appId: "1:831638904366:web:a8ecd84d6f9ad7bd7a09bf",
+            measurementId: "G-5R6FPS4D9S"
+        };
+
+        let firebaseReady = false;
+        let db = null;
+
+        try {
+            if (typeof firebase !== 'undefined') {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.database();
+                firebaseReady = true;
+                console.log('✅ Firebase initialized');
+            } else {
+                console.log('Firebase SDK not loaded');
+            }
+        } catch (e) {
+            console.warn('Firebase init error', e);
+        }
+
         let appData = {
             teamMembers: [],
             products: [],
             sales: []
         };
 
+        // Local storage helpers
+        function saveLocal() {
+            try { localStorage.setItem('appData', JSON.stringify(appData)); } catch(e){}
+        }
+        function loadLocal() {
+            try {
+                const j = localStorage.getItem('appData');
+                if (j) appData = JSON.parse(j);
+            } catch(e){}
+        }
+
+        // Firebase helpers
+        function saveToFirebase() {
+            if (!firebaseReady || !db) return;
+            try { db.ref('/state').set(appData); } catch(e) { console.warn('saveToFirebase failed', e); }
+        }
+
+        function setupFirebaseListeners() {
+            if (!firebaseReady || !db) return;
+            const ref = db.ref('/state');
+            ref.on('value', (snap) => {
+                const val = snap.val();
+                if (val) {
+                    appData = val;
+                    saveLocal();
+                    renderAll();
+                }
+            });
+            console.log('Firebase listeners attached');
+        }
+
         function updateSyncStatus() {
             const dot = document.getElementById('syncStatus');
             const text = document.getElementById('syncText');
-            if (navigator.onLine) {
+            const online = navigator.onLine && firebaseReady;
+            if (online) {
                 dot.classList.remove('offline');
                 dot.style.background = '#4caf50';
                 text.textContent = 'Live Sync ✓';
             } else {
                 dot.classList.add('offline');
                 dot.style.background = '#ff9800';
-                text.textContent = 'Offline Mode';
+                text.textContent = firebaseReady ? 'Offline Mode' : 'Local Mode';
             }
         }
 
+        // UI and data functions (mutate appData then save)
         function switchTab(tabName) {
             console.log('Switching to tab:', tabName);
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
-            document.getElementById(tabName).classList.add('active');
-            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+            const el = document.getElementById(tabName);
+            if (el) el.classList.add('active');
+            const btn = document.querySelector(`[data-tab="${tabName}"]`);
+            if (btn) btn.classList.add('active');
         }
 
         function addTeamMember() {
@@ -143,11 +209,13 @@
                 appData.teamMembers.push(name);
                 input.value = '';
                 renderTeamList();
+                saveLocal(); saveToFirebase();
             }
         }
 
         function renderTeamList() {
             const list = document.getElementById('teamList');
+            if (!list) return;
             list.innerHTML = appData.teamMembers.map((m, i) => 
                 `<div class="team-member">${m} <button class="btn btn-danger" onclick="removeTeamMember(${i})">Remove</button></div>`
             ).join('');
@@ -156,22 +224,25 @@
         function removeTeamMember(i) {
             appData.teamMembers.splice(i, 1);
             renderTeamList();
+            saveLocal(); saveToFirebase();
         }
 
         function addProduct() {
             const name = document.getElementById('productName').value.trim();
             const price = parseFloat(document.getElementById('productPrice').value);
             if (name && price > 0) {
-                appData.products.push({ id: Date.now(), name, price });
+                const id = Date.now();
+                appData.products.push({ id, name, price });
                 document.getElementById('productName').value = '';
                 document.getElementById('productPrice').value = '';
-                renderProducts();
-                updateProductSelect();
+                renderProducts(); updateProductSelect();
+                saveLocal(); saveToFirebase();
             }
         }
 
         function renderProducts() {
             const list = document.getElementById('productsList');
+            if (!list) return;
             list.innerHTML = appData.products.map(p => 
                 `<div class="team-member">${p.name} - $${p.price.toFixed(2)} <button class="btn btn-danger" onclick="removeProduct(${p.id})">Remove</button></div>`
             ).join('');
@@ -179,12 +250,13 @@
 
         function removeProduct(id) {
             appData.products = appData.products.filter(p => p.id !== id);
-            renderProducts();
-            updateProductSelect();
+            renderProducts(); updateProductSelect();
+            saveLocal(); saveToFirebase();
         }
 
         function updateProductSelect() {
             const select = document.getElementById('saleProduct');
+            if (!select) return;
             const current = select.value;
             select.innerHTML = '<option>Select product...</option>' + 
                 appData.products.map(p => `<option value="${p.id}">${p.name} - $${p.price.toFixed(2)}</option>`).join('');
@@ -199,14 +271,15 @@
                 if (product) {
                     appData.sales.push({ productId, qty, price: product.price, amount: qty * product.price });
                     document.getElementById('saleQty').value = '1';
-                    renderSales();
-                    updateDashboard();
+                    renderSales(); updateDashboard();
+                    saveLocal(); saveToFirebase();
                 }
             }
         }
 
         function renderSales() {
             const list = document.getElementById('salesList');
+            if (!list) return;
             list.innerHTML = appData.sales.map((s, i) => {
                 const product = appData.products.find(p => p.id == s.productId);
                 return `<div class="team-member">${product?.name || 'Unknown'} x${s.qty} = $${s.amount.toFixed(2)} <button class="btn btn-danger" onclick="removeSale(${i})">Remove</button></div>`;
@@ -215,14 +288,16 @@
 
         function removeSale(i) {
             appData.sales.splice(i, 1);
-            renderSales();
-            updateDashboard();
+            renderSales(); updateDashboard();
+            saveLocal(); saveToFirebase();
         }
 
         function updateDashboard() {
             const revenue = appData.sales.reduce((sum, s) => sum + s.amount, 0);
-            document.getElementById('revenue').textContent = revenue.toFixed(2);
-            document.getElementById('saleCount').textContent = appData.sales.length;
+            const rEl = document.getElementById('revenue');
+            const cEl = document.getElementById('saleCount');
+            if (rEl) rEl.textContent = revenue.toFixed(2);
+            if (cEl) cEl.textContent = appData.sales.length;
         }
 
         function loadDemoData() {
@@ -237,20 +312,18 @@
                 { productId: 2, qty: 3, price: 8, amount: 24 }
             ];
             renderAll();
+            saveLocal(); saveToFirebase();
         }
 
         function renderAll() {
-            renderTeamList();
-            renderProducts();
-            updateProductSelect();
-            renderSales();
-            updateDashboard();
+            renderTeamList(); renderProducts(); updateProductSelect(); renderSales(); updateDashboard();
         }
 
         function resetData() {
             if (confirm('Reset all data?')) {
                 appData = { teamMembers: [], products: [], sales: [] };
                 renderAll();
+                saveLocal(); saveToFirebase();
             }
         }
 
@@ -262,14 +335,16 @@
             });
         });
 
-        // Initialize
+        // Initialize: load local then attach Firebase
         console.log('Initializing app...');
-        updateSyncStatus();
+        loadLocal();
         renderAll();
+        if (firebaseReady) setupFirebaseListeners();
+        updateSyncStatus();
         console.log('✅ App ready!');
 
         // Listen for online/offline
-        window.addEventListener('online', updateSyncStatus);
+        window.addEventListener('online', () => { updateSyncStatus(); saveToFirebase(); });
         window.addEventListener('offline', updateSyncStatus);
     </script>
 </body>
