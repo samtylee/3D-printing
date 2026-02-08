@@ -73,6 +73,9 @@ function setupFirebaseListeners() {
 }
 
 function checkOnlineStatus() {
+    const isOnlineNow = navigator.onLine;
+    updateSyncStatus(isOnlineNow && firebaseReady);
+    
     if (!firebaseReady) return;
     const connectedRef = realtimeDB.ref('.info/connected');
     connectedRef.on('value', (snapshot) => {
@@ -131,41 +134,6 @@ function saveToFirebase() {
 }
 
 // ===== UI SETUP =====
-function setupUIListeners() {
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            switchTab(this.dataset.tab);
-        });
-    });
-    document.getElementById('stallFee').addEventListener('change', saveCosts);
-    document.getElementById('insurance').addEventListener('change', saveCosts);
-    document.getElementById('squareReader').addEventListener('change', saveCosts);
-    document.getElementById('newMemberName').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') addTeamMember();
-    });
-    document.getElementById('newProductName').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') addProduct();
-    });
-    document.getElementById('saleProduct').addEventListener('change', updateProductPrice);
-    document.getElementById('reportNotes').addEventListener('change', function() {
-        appState.reportMeta.notes = this.value;
-        saveToFirebase();
-    });
-    document.getElementById('reportEventDate').addEventListener('change', function() {
-        appState.reportMeta.eventDate = this.value;
-        saveToFirebase();
-    });
-}
-
-function switchTab(tabName) {
-    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.getElementById(tabName).classList.add('active');
-    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-    if (tabName === 'dashboard') {
-        setTimeout(renderDashboard, 100);
-    }
-}
 
 // ===== TEAM MANAGEMENT =====
 function addTeamMember() {
@@ -744,6 +712,16 @@ function renderAll() {
 }
 
 // ===== UI LISTENERS & INITIALIZATION =====
+function switchTab(tabName) {
+    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(tabName).classList.add('active');
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+    if (tabName === 'dashboard') {
+        setTimeout(renderDashboard, 100);
+    }
+}
+
 function setupUIListeners() {
     // Team section
     const addTeamBtn = document.getElementById('addTeamBtn');
