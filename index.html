@@ -354,20 +354,26 @@
             const grid = document.getElementById('quickSaleButtons');
             if (!grid) return;
             grid.innerHTML = appData.products.map(p => 
-                `<button class="product-btn" onclick="openPaymentModal(${p.id}, '${p.name}', ${p.price})">${p.name}<br>$${p.price.toFixed(2)}</button>`
+                `<button class="product-btn" onclick="openQuantityModal(${p.id}, '${p.name}', ${p.price})">${p.name}<br>$${p.price.toFixed(2)}</button>`
             ).join('');
         }
 
-        function openPaymentModal(productId, productName, price) {
+        function openQuantityModal(productId, productName, price) {
             appData.pendingProductId = productId;
             appData.pendingProductPrice = price;
             document.getElementById('quantityProductName').textContent = `${productName} - $${price.toFixed(2)}`;
             document.getElementById('quantityModal').classList.remove('hidden');
         }
 
+        function openPaymentModal(productId, productName, price) {
+            appData.pendingProductId = productId;
+            appData.pendingProductPrice = price;
+            document.getElementById('paymentProductName').textContent = `${productName} - $${price.toFixed(2)}`;
+            document.getElementById('paymentModal').classList.remove('hidden');
+        }
+
         function closeQuantityModal() {
             document.getElementById('quantityModal').classList.add('hidden');
-            appData.pendingProductId = null;
             appData.pendingQty = 1;
         }
 
@@ -384,6 +390,7 @@
         function closePaymentModal() {
             document.getElementById('paymentModal').classList.add('hidden');
             appData.pendingProductId = null;
+            appData.pendingQty = 1;
         }
 
         function recordSale(paymentMethod) {
