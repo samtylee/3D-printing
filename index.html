@@ -803,15 +803,16 @@
             const doc = new jsPDF('p', 'mm', 'a4');
             let yPos = 15;
             const pageHeight = doc.internal.pageSize.getHeight();
+            const pageWidth = doc.internal.pageSize.getWidth();
             const margin = 10;
-            const lineHeight = 6;
+            const lineHeight = 5;
 
             // Summary page
             doc.setFontSize(16);
             doc.text('Market Stall Report', margin, yPos);
             yPos += 10;
 
-            doc.setFontSize(12);
+            doc.setFontSize(11);
             const revenue = appData.sales.reduce((sum, s) => sum + s.amount, 0);
             const costs = appData.costs.stallFee + appData.costs.insurance + appData.costs.squareReader;
             const profit = revenue - costs;
@@ -826,24 +827,65 @@
                 `Cash Sales: $${cashTotal.toFixed(2)}`,
                 `Card Sales: $${cardTotal.toFixed(2)}`,
                 `Total Costs: $${costs.toFixed(2)}`,
-                `  - Stall Fee: $${appData.costs.stallFee.toFixed(2)}`,
-                `  - Insurance: $${appData.costs.insurance.toFixed(2)}`,
-                `  - Square Reader: $${appData.costs.squareReader.toFixed(2)}`,
-                '',
                 `Net Profit: $${profit.toFixed(2)}`,
-                `Total Sales: ${appData.sales.length}`,
-                '',
-                `Notes: ${appData.reportMeta.notes || 'None'}`
+                `Total Sales: ${appData.sales.length}`
             ];
 
             summaryLines.forEach(line => {
-                if (yPos > pageHeight - margin) {
+                if (yPos > pageHeight - margin - 30) {
                     doc.addPage();
                     yPos = margin;
                 }
                 doc.text(line, margin, yPos);
                 yPos += lineHeight;
             });
+
+            // Product sales breakdown
+            if (yPos > pageHeight - margin - 50) {
+                doc.addPage();
+                yPos = margin;
+            }
+            yPos += 5;
+            doc.setFontSize(12);
+            doc.text('Product Sales Breakdown', margin, yPos);
+            yPos += 7;
+            doc.setFontSize(10);
+
+            const productSales = appData.products.map(p => ({ product: p, units: 0, revenue: 0 }));
+            appData.sales.forEach(s => {
+                const ps = productSales.find(x => x.product.id == s.productId);
+                if (ps) { ps.units += s.qty; ps.revenue += s.amount; }
+            });
+
+            productSales.forEach(ps => {
+                if (ps.units > 0) {
+                    if (yPos > pageHeight - margin - 10) {
+                        doc.addPage();
+                        yPos = margin;
+                    }
+                    doc.text(`${ps.product.name}: ${ps.units} units - $${ps.revenue.toFixed(2)}`, margin + 5, yPos);
+                    yPos += lineHeight;
+                }
+            });
+
+            // Add sales chart as image
+            const canvas = document.getElementById('salesChart');
+            if (canvas) {
+                if (yPos > pageHeight - margin - 120) {
+                    doc.addPage();
+                    yPos = margin;
+                }
+                yPos += 5;
+                try {
+                    const chartImage = canvas.toDataURL('image/png');
+                    const chartWidth = pageWidth - (margin * 2);
+                    const chartHeight = (chartWidth / 600) * 240; // maintain aspect ratio
+                    doc.addImage(chartImage, 'PNG', margin, yPos, chartWidth, chartHeight);
+                    yPos += chartHeight + 5;
+                } catch (e) {
+                    console.log('Could not embed chart:', e);
+                }
+            }
 
             // Per-kid pages
             if (appData.teamMembers && appData.teamMembers.length > 0) {
@@ -868,6 +910,7 @@
                         `Total Costs: $${costs.toFixed(2)}`,
                         `Net Profit: $${profit.toFixed(2)}`,
                         '',
+                        `Team Members: ${appData.teamMembers.length}`,
                         `Share of Profit Pot: $${share.toFixed(2)}`,
                         '',
                         `Notes: ${appData.reportMeta.notes || 'None'}`
