@@ -78,9 +78,10 @@
         <nav class="tabs">
             <button class="tab-button active" data-tab="setup">Setup</button>
             <button class="tab-button" data-tab="products">Products</button>
-            <button class="tab-button" data-tab="sales">Sales</button>
+            <button class="tab-button" data-tab="endOfDaySummary">📋 End-of-Day</button>
             <button class="tab-button" data-tab="dashboard">Dashboard</button>
             <button class="tab-button" data-tab="reports">Reports</button>
+            <button class="tab-button" data-tab="sales" style="display:none;">Sales</button>
         </nav>
 
         <!-- Setup Tab -->
@@ -117,17 +118,35 @@
 
         <!-- Products Tab -->
         <section id="products" class="tab-content">
-            <h2>Products</h2>
+            <h2>Products (Inventory Setup)</h2>
             <div class="section-box">
                 <h3>Add Product</h3>
                 <input type="text" id="productName" placeholder="Product name">
-                <input type="number" id="productPrice" placeholder="Price" min="0" step="0.01">
+                <input type="number" id="productPrice" placeholder="Price (optional)" min="0" step="0.01">
+                <input type="number" id="productQuantityBrought" placeholder="Quantity Brought" min="0" step="1">
                 <button class="btn btn-primary" onclick="addProduct()">Add Product</button>
             </div>
             <div class="section-box">
                 <h3>Products List</h3>
                 <div id="productsList"></div>
             </div>
+        </section>
+
+        <!-- End-of-Day Summary Tab -->
+        <section id="endOfDaySummary" class="tab-content">
+            <h2>End-of-Day Summary</h2>
+            <div class="section-box">
+                <h3>Final Revenue Totals</h3>
+                <label>Cash Total (from cash box - float)</label>
+                <input type="number" id="cashTotal" placeholder="0.00" min="0" step="0.01" value="0">
+                <label>Card Total (from Square)</label>
+                <input type="number" id="cardTotal" placeholder="0.00" min="0" step="0.01" value="0">
+            </div>
+            <div class="section-box">
+                <h3>Stock Take: Quantity Left</h3>
+                <div id="stockTakeList"></div>
+            </div>
+            <button class="btn btn-primary" onclick="submitStockTake()" style="margin: 20px;">✅ Submit Stock Take & Complete Event</button>
         </section>
 
         <!-- Sales Tab -->
@@ -222,18 +241,15 @@
                 <p><strong>Profit After Costs:</strong> $<span id="dashProfit">0.00</span></p>
                 <p><strong>Cash Sales:</strong> $<span id="dashCashTotal">0.00</span></p>
                 <p><strong>Card Sales:</strong> $<span id="dashCardTotal">0.00</span></p>
-                <p><strong>Total Sales Count:</strong> <span id="dashSaleCount">0</span></p>
-                    <div style="margin-top:12px;">
-                        <h4>Break-even Progress</h4>
-                        <div class="progress-container"><div id="breakEvenBar" class="progress-bar" style="width:0%"></div></div>
-                        <p id="breakEvenText" style="margin-top:6px; font-size:0.95rem; color:#333"></p>
-                    </div>
-                    <div style="margin-top:12px;">
-                        <h4>Profit Pot</h4>
-                        <p>Per-kid payout: $<span id="perKidPayout">0.00</span></p>
-                        <div style="margin-top:8px;"><canvas id="miniSalesChart" width="400" height="120" style="width:100%; max-width:400px; height:120px; background:#fff; border-radius:6px;"></canvas></div>
-                        <div style="margin-top:8px;"><span id="dashTopSeller" class="top-seller">⭐ Top Seller: None</span></div>
-                    </div>
+                <p><strong>Total Units Sold:</strong> <span id="dashSaleCount">0</span></p>
+            </div>
+            <div class="section-box">
+                <h4>Profit Pot</h4>
+                <p style="font-size: 1.3em; font-weight: bold; color: #4caf50;">Per-kid payout: $<span id="perKidPayout">0.00</span></p>
+            </div>
+            <div class="section-box">
+                <h3>Product Leaderboard (by Units Sold)</h3>
+                <div id="leaderboard"></div>
             </div>
         </section>
 
@@ -272,7 +288,14 @@
             teamName: 'Team 1',
             teamMembers: [],
             products: [],
-            sales: [],
+            // POST-EVENT WORKFLOW: Replace sales array with inventory-based data
+            sales: [],  // Kept for backward compatibility; used only for legacy data migration
+            productsBrought: [],  // Array of {productId, quantityBrought}
+            finalRevenue: {
+                cash: 0,
+                card: 0
+            },
+            stockTake: [],  // Array of {productId, quantityLeft}
             costs: {
                 stallFee: 175,
                 insurance: 50,
@@ -286,14 +309,36 @@
             currentSalesMode: 'quick',
             pendingProductId: null,
             pendingQty: 1,
-            pendingProductPrice: 0
-            ,previousProfit: 0,
+            pendingProductPrice: 0,
+            previousProfit: 0,
             lastTopSellerId: null
         };
 
         // Local storage helpers
         function saveLocal() {
             try { localStorage.setItem('appData', JSON.stringify(appData)); } catch(e){}
+        }
+
+        // Compute product inventory metrics from stock take
+        function computeInventoryMetrics() {
+            const metrics = appData.products.map(p => {
+                const brought = appData.productsBrought.find(x => x.productId == p.id);
+                const stockTake = appData.stockTake.find(x => x.productId == p.id);
+                const quantityBrought = brought ? brought.quantityBrought : 0;
+                const quantityLeft = stockTake ? stockTake.quantityLeft : 0;
+                const quantitySold = Math.max(0, quantityBrought - quantityLeft);
+                const sellThrough = quantityBrought > 0 ? ((quantitySold / quantityBrought) * 100).toFixed(1) : 0;
+                const revenue = quantitySold * (p.price || 0);
+                return {
+                    product: p,
+                    quantityBrought,
+                    quantityLeft,
+                    quantitySold,
+                    sellThrough,
+                    revenue
+                };
+            });
+            return metrics;
         }
 
         // Mini chart for dashboard
@@ -389,6 +434,11 @@
             if (el) el.classList.add('active');
             const btn = document.querySelector(`[data-tab="${tabName}"]`);
             if (btn) btn.classList.add('active');
+            
+            // Load stock take form when switching to end-of-day tab
+            if (tabName === 'endOfDaySummary') {
+                renderStockTakeForm();
+            }
         }
 
         function addTeamMember() {
@@ -418,12 +468,16 @@
 
         function addProduct() {
             const name = document.getElementById('productName').value.trim();
-            const price = parseFloat(document.getElementById('productPrice').value);
-            if (name && price > 0) {
+            const price = parseFloat(document.getElementById('productPrice').value) || 0;
+            const quantityBrought = parseInt(document.getElementById('productQuantityBrought').value) || 0;
+            if (name && quantityBrought > 0) {
                 const id = Date.now();
                 appData.products.push({ id, name, price });
+                // Store quantity brought
+                appData.productsBrought.push({ productId: id, quantityBrought });
                 document.getElementById('productName').value = '';
                 document.getElementById('productPrice').value = '';
+                document.getElementById('productQuantityBrought').value = '';
                 renderProducts(); updateProductSelect(); renderQuickSaleButtons();
                 saveLocal();
             }
@@ -432,13 +486,16 @@
         function renderProducts() {
             const list = document.getElementById('productsList');
             if (!list) return;
-            list.innerHTML = appData.products.map(p => 
-                `<div class="team-member">${p.name} - $${p.price.toFixed(2)} <button class="btn btn-danger" onclick="removeProduct(${p.id})">Remove</button></div>`
-            ).join('');
+            list.innerHTML = appData.products.map(p => {
+                const brought = appData.productsBrought.find(x => x.productId == p.id);
+                const qty = brought ? brought.quantityBrought : 0;
+                return `<div class="team-member">${p.name} (brought: ${qty}) ${p.price > 0 ? `- $${p.price.toFixed(2)}` : ''} <button class="btn btn-danger" onclick="removeProduct(${p.id})">Remove</button></div>`;
+            }).join('');
         }
 
         function removeProduct(id) {
             appData.products = appData.products.filter(p => p.id !== id);
+            appData.productsBrought = appData.productsBrought.filter(x => x.productId !== id);
             renderProducts(); updateProductSelect(); renderQuickSaleButtons();
             saveLocal();
         }
@@ -617,11 +674,12 @@
         }
 
         function updateDashboard() {
-            const revenue = appData.sales.reduce((sum, s) => sum + s.amount, 0);
+            // POST-EVENT: Use final revenue from end-of-day summary
+            const revenue = appData.finalRevenue.cash + appData.finalRevenue.card;
             const costs = appData.costs.stallFee + appData.costs.insurance + appData.costs.squareReader;
             const profit = revenue - costs;
-            const cashTotal = appData.sales.filter(s => s.paymentMethod === 'Cash').reduce((sum, s) => sum + s.amount, 0);
-            const cardTotal = appData.sales.filter(s => s.paymentMethod === 'Card').reduce((sum, s) => sum + s.amount, 0);
+            const cashTotal = appData.finalRevenue.cash;
+            const cardTotal = appData.finalRevenue.card;
 
             const rEl = document.getElementById('revenue');
             const cEl = document.getElementById('saleCount');
@@ -631,63 +689,34 @@
             const dashCash = document.getElementById('dashCashTotal');
             const dashCard = document.getElementById('dashCardTotal');
             const dashCount = document.getElementById('dashSaleCount');
-            const quickRev = document.getElementById('quickTotalRevenue');
-            const quickCash = document.getElementById('quickCashTotal');
-            const quickCard = document.getElementById('quickCardTotal');
 
             if (rEl) rEl.textContent = revenue.toFixed(2);
-            if (cEl) cEl.textContent = appData.sales.length;
             if (dashRev) dashRev.textContent = revenue.toFixed(2);
             if (dashCosts) dashCosts.textContent = costs.toFixed(2);
             if (dashProfit) dashProfit.textContent = profit.toFixed(2);
             if (dashCash) dashCash.textContent = cashTotal.toFixed(2);
             if (dashCard) dashCard.textContent = cardTotal.toFixed(2);
-            if (dashCount) dashCount.textContent = appData.sales.length;
-            if (quickRev) quickRev.textContent = revenue.toFixed(2);
-            if (quickCash) quickCash.textContent = cashTotal.toFixed(2);
-            if (quickCard) quickCard.textContent = cardTotal.toFixed(2);
 
-            // Compute product sales for dashboard chart and top-seller
-            const productSales = appData.products.map(p => ({ product: p, units: 0, revenue: 0 }));
-            appData.sales.forEach(s => {
-                const ps = productSales.find(x => x.product.id == s.productId);
-                if (ps) { ps.units += s.qty; ps.revenue += s.amount; }
-            });
+            // Compute inventory metrics (quantity sold, sell-through, etc)
+            const inventoryMetrics = computeInventoryMetrics();
+            const totalUnitsSold = inventoryMetrics.reduce((sum, m) => sum + m.quantitySold, 0);
+            if (cEl) cEl.textContent = totalUnitsSold;
 
-            // Break-even progress
-            const breakBar = document.getElementById('breakEvenBar');
-            const breakText = document.getElementById('breakEvenText');
-            let breakPct = 0;
-            if (costs > 0) breakPct = Math.max(0, Math.min(100, (revenue / costs) * 100));
-            else breakPct = revenue > 0 ? 100 : 0;
-            if (breakBar) breakBar.style.width = `${breakPct}%`;
-            if (breakText) {
-                if (breakPct >= 100) breakText.textContent = `Reached break-even — $${profit.toFixed(2)} profit`;
-                else breakText.textContent = `${breakPct.toFixed(0)}% to break-even — $${Math.max(0, (costs - revenue)).toFixed(2)} remaining`;
-            }
-
-            // Per-kid payout
-            const perKid = (profit > 0 && appData.teamMembers && appData.teamMembers.length > 0) ? (profit / appData.teamMembers.length) : 0;
+            // Per-kid payout (can be negative if loss)
+            const perKid = appData.teamMembers && appData.teamMembers.length > 0 ? (profit / appData.teamMembers.length) : 0;
             const perKidEl = document.getElementById('perKidPayout');
-            if (perKidEl) perKidEl.textContent = perKid.toFixed(2);
-
-            // Dashboard top-seller + animate on change
-            const topSeller = productSales.reduce((max, ps) => ps.units > max.units ? ps : max, { units: 0 });
-            const dashBadge = document.getElementById('dashTopSeller');
-            if (dashBadge) {
-                const name = topSeller.units > 0 ? `${topSeller.product.name} (${topSeller.units})` : 'None';
-                dashBadge.textContent = `⭐ Top Seller: ${name}`;
-                if (!appData.lastTopSellerId) appData.lastTopSellerId = null;
-                const newId = topSeller.product ? topSeller.product.id : null;
-                if (newId !== appData.lastTopSellerId && topSeller.units > 0) {
-                    dashBadge.classList.add('badge-animate');
-                    setTimeout(() => dashBadge.classList.remove('badge-animate'), 900);
+            if (perKidEl) {
+                if (perKid < 0) {
+                    perKidEl.textContent = `$${Math.abs(perKid).toFixed(2)} loss per kid`;
+                    perKidEl.style.color = '#f5576c';
+                } else {
+                    perKidEl.textContent = perKid.toFixed(2);
+                    perKidEl.style.color = '#4caf50';
                 }
-                appData.lastTopSellerId = newId;
             }
 
-            // draw mini chart
-            drawMiniSalesChart(productSales);
+            // Render leaderboard
+            renderLeaderboard(inventoryMetrics);
 
             // Update report in real-time
             updateReportDisplay();
@@ -701,6 +730,33 @@
             appData.previousProfit = profit;
         }
 
+        // Post-event: render leaderboard
+        function renderLeaderboard(inventoryMetrics) {
+            const leaderboard = document.getElementById('leaderboard');
+            if (!leaderboard) return;
+            
+            // Sort by quantity sold descending
+            const sorted = [...inventoryMetrics].sort((a, b) => b.quantitySold - a.quantitySold);
+            
+            let html = '<table style="width:100%; border-collapse: collapse;">';
+            html += '<tr style="background:#f8f9fa; font-weight:bold;"><th style="padding:8px; text-align:left; border-bottom:2px solid #ddd;">Rank</th><th style="padding:8px; text-align:left; border-bottom:2px solid #ddd;">Product</th><th style="padding:8px; text-align:center; border-bottom:2px solid #ddd;">Sold</th><th style="padding:8px; text-align:center; border-bottom:2px solid #ddd;">Sell-Through</th><th style="padding:8px; text-align:right; border-bottom:2px solid #ddd;">Revenue</th></tr>';
+            
+            sorted.forEach((m, idx) => {
+                const rank = idx + 1;
+                const badgeHtml = rank === 1 ? ' ⭐' : '';
+                html += `<tr style="border-bottom:1px solid #ddd;">
+                    <td style="padding:8px; font-weight:bold;">${rank}${badgeHtml}</td>
+                    <td style="padding:8px;">${m.product.name}</td>
+                    <td style="padding:8px; text-align:center;">${m.quantitySold}/${m.quantityBrought}</td>
+                    <td style="padding:8px; text-align:center;">${m.sellThrough}%</td>
+                    <td style="padding:8px; text-align:right;">$${m.revenue.toFixed(2)}</td>
+                </tr>`;
+            });
+            html += '</table>';
+            
+            leaderboard.innerHTML = html;
+        }
+
         function updateCosts() {
             appData.costs.stallFee = parseFloat(document.getElementById('stallFee').value) || 0;
             appData.costs.insurance = parseFloat(document.getElementById('insurance').value) || 0;
@@ -710,6 +766,53 @@
             if (totalEl) totalEl.textContent = total.toFixed(2);
             updateDashboard();
             saveLocal();
+        }
+
+        // Post-event: render stock take form
+        function renderStockTakeForm() {
+            const list = document.getElementById('stockTakeList');
+            if (!list) return;
+            list.innerHTML = appData.products.map(p => {
+                const brought = appData.productsBrought.find(x => x.productId == p.id);
+                const stockTake = appData.stockTake.find(x => x.productId == p.id);
+                const quantityBrought = brought ? brought.quantityBrought : 0;
+                const quantityLeft = stockTake ? stockTake.quantityLeft : 0;
+                return `
+                    <div class="section-box" style="margin-bottom: 10px;">
+                        <p><strong>${p.name}</strong> - Brought: ${quantityBrought}</p>
+                        <label>Quantity Left:</label>
+                        <input type="number" data-product-id="${p.id}" class="stock-left-input" value="${quantityLeft}" min="0" step="1" max="${quantityBrought}">
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Post-event: submit stock take
+        function submitStockTake() {
+            const cashVal = parseFloat(document.getElementById('cashTotal').value) || 0;
+            const cardVal = parseFloat(document.getElementById('cardTotal').value) || 0;
+            
+            if (cashVal < 0 || cardVal < 0) {
+                alert('Revenue totals cannot be negative');
+                return;
+            }
+            
+            // Capture stock take inputs
+            appData.stockTake = [];
+            document.querySelectorAll('.stock-left-input').forEach(input => {
+                const productId = parseInt(input.getAttribute('data-product-id'));
+                const quantityLeft = parseInt(input.value) || 0;
+                appData.stockTake.push({ productId, quantityLeft });
+            });
+            
+            // Save final revenue
+            appData.finalRevenue.cash = cashVal;
+            appData.finalRevenue.card = cardVal;
+            
+            saveLocal();
+            updateDashboard();
+            showNotification('✅ Stock take submitted! Event complete.');
+            switchTab('dashboard');
         }
 
         function showNotification(message) {
@@ -742,20 +845,21 @@
         }
 
         function updateReportDisplay() {
-            const revenue = appData.sales.reduce((sum, s) => sum + s.amount, 0);
+            // POST-EVENT: Use final revenue totals
+            const revenue = appData.finalRevenue.cash + appData.finalRevenue.card;
             const costs = appData.costs.stallFee + appData.costs.insurance + appData.costs.squareReader;
             const profit = revenue - costs;
-            const cashTotal = appData.sales.filter(s => s.paymentMethod === 'Cash').reduce((sum, s) => sum + s.amount, 0);
-            const cardTotal = appData.sales.filter(s => s.paymentMethod === 'Card').reduce((sum, s) => sum + s.amount, 0);
+            const cashTotal = appData.finalRevenue.cash;
+            const cardTotal = appData.finalRevenue.card;
             const teamMembersStr = appData.teamMembers && appData.teamMembers.length > 0 ? appData.teamMembers.join(', ') : 'None';
             
-            // Calculate break-even
-            let breakPct = 0;
-            if (costs > 0) breakPct = Math.max(0, Math.min(100, (revenue / costs) * 100));
-            else breakPct = revenue > 0 ? 100 : 0;
+            // Calculate per-kid payout (can be negative)
+            const perKid = appData.teamMembers && appData.teamMembers.length > 0 ? (profit / appData.teamMembers.length) : 0;
+            const perKidText = perKid < 0 ? `$${Math.abs(perKid).toFixed(2)} loss per kid` : `$${perKid.toFixed(2)}`;
             
-            // Calculate per-kid payout
-            const perKid = (profit > 0 && appData.teamMembers && appData.teamMembers.length > 0) ? (profit / appData.teamMembers.length) : 0;
+            // Get inventory metrics
+            const inventoryMetrics = computeInventoryMetrics();
+            const totalUnitsSold = inventoryMetrics.reduce((sum, m) => sum + m.quantitySold, 0);
             
             const html = `
                 <div class="report-header">
@@ -778,8 +882,8 @@
                         <div class="value profit">$${profit.toFixed(2)}</div>
                     </div>
                     <div class="metric-card">
-                        <div class="label">Total Sales</div>
-                        <div class="value">${appData.sales.length}</div>
+                        <div class="label">Units Sold</div>
+                        <div class="value">${totalUnitsSold}</div>
                     </div>
                     <div class="metric-card">
                         <div class="label">Cash Sales</div>
@@ -791,17 +895,29 @@
                     </div>
                 </div>
                 <div class="section-box">
-                    <h4>Break-even Progress</h4>
-                    <div class="progress-container">
-                        <div class="progress-bar" style="width: ${breakPct}%"></div>
-                    </div>
-                    <p style="margin-top: 8px; font-size: 0.9em; color: #666;">
-                        ${breakPct >= 100 ? `✅ Reached break-even — $${profit.toFixed(2)} profit` : `${breakPct.toFixed(0)}% to break-even — $${Math.max(0, (costs - revenue)).toFixed(2)} remaining`}
-                    </p>
+                    <h4>Profit Pot</h4>
+                    <p style="font-size: 1.3em; font-weight: bold; color: #4caf50;">Per-kid payout: ${perKidText}</p>
                 </div>
                 <div class="section-box">
-                    <h4>Profit Pot</h4>
-                    <p style="font-size: 1.3em; font-weight: bold; color: #4caf50;">Per-kid payout: $${perKid.toFixed(2)}</p>
+                    <h3>Product Leaderboard</h3>
+                    <table style="width:100%; border-collapse: collapse;">
+                        <tr style="background:#f8f9fa; font-weight:bold;">
+                            <th style="padding:8px; text-align:left; border-bottom:2px solid #ddd;">Rank</th>
+                            <th style="padding:8px; text-align:left; border-bottom:2px solid #ddd;">Product</th>
+                            <th style="padding:8px; text-align:center; border-bottom:2px solid #ddd;">Sold</th>
+                            <th style="padding:8px; text-align:center; border-bottom:2px solid #ddd;">Sell-Through</th>
+                            <th style="padding:8px; text-align:right; border-bottom:2px solid #ddd;">Revenue</th>
+                        </tr>
+                        ${[...inventoryMetrics].sort((a, b) => b.quantitySold - a.quantitySold).map((m, idx) => `
+                        <tr style="border-bottom:1px solid #ddd;">
+                            <td style="padding:8px; font-weight:bold;">${idx + 1}${idx === 0 ? ' ⭐' : ''}</td>
+                            <td style="padding:8px;">${m.product.name}</td>
+                            <td style="padding:8px; text-align:center;">${m.quantitySold}/${m.quantityBrought}</td>
+                            <td style="padding:8px; text-align:center;">${m.sellThrough}%</td>
+                            <td style="padding:8px; text-align:right;">$${m.revenue.toFixed(2)}</td>
+                        </tr>
+                        `).join('')}
+                    </table>
                 </div>
                 <div class="section-box">
                     <p><strong>Notes:</strong> ${appData.reportMeta.notes || 'None'}</p>
@@ -809,21 +925,6 @@
             `;
             const reportEl = document.getElementById('reportContent');
             if (reportEl) reportEl.innerHTML = html;
-
-            // Compute sales by product for extras (top-seller + chart)
-            const productSales = appData.products.map(p => ({ product: p, units: 0, revenue: 0 }));
-            appData.sales.forEach(s => {
-                const ps = productSales.find(x => x.product.id == s.productId);
-                if (ps) { ps.units += s.qty; ps.revenue += s.amount; }
-            });
-            const topSeller = productSales.reduce((max, ps) => ps.units > max.units ? ps : max, { units: 0 });
-            const badge = document.getElementById('topSellerBadge');
-            if (badge) {
-                if (topSeller.units > 0) badge.textContent = `⭐ Top Seller: ${topSeller.product.name} (${topSeller.units} units)`;
-                else badge.textContent = '⭐ Top Seller: None';
-            }
-
-            drawSalesChart(productSales);
         }
 
         function drawSalesChart(productSales) {
@@ -1034,10 +1135,21 @@
                 { id: 2, name: 'Spinner', price: 8 },
                 { id: 3, name: 'Stand', price: 12 }
             ];
-            appData.sales = [
-                { productId: 1, qty: 2, price: 15, amount: 30, paymentMethod: 'Cash' },
-                { productId: 2, qty: 3, price: 8, amount: 24, paymentMethod: 'Card' }
+            // Post-event demo: set up inventory
+            appData.productsBrought = [
+                { productId: 1, quantityBrought: 20 },
+                { productId: 2, quantityBrought: 30 },
+                { productId: 3, quantityBrought: 25 }
             ];
+            // Demo stock take results
+            appData.stockTake = [
+                { productId: 1, quantityLeft: 2 },   // 18 sold
+                { productId: 2, quantityLeft: 5 },   // 25 sold
+                { productId: 3, quantityLeft: 8 }    // 17 sold
+            ];
+            // Demo final revenue
+            appData.finalRevenue = { cash: 300, card: 200 };
+            
             appData.costs = { stallFee: 175, insurance: 50, squareReader: 50 };
             appData.reportMeta = {
                 eventName: "Glenferrie Festival",
@@ -1050,7 +1162,7 @@
 
         function renderAll() {
             renderTeamList(); renderProducts(); updateProductSelect(); renderSales(); updateDashboard();
-            renderQuickSaleButtons();
+            renderQuickSaleButtons(); renderStockTakeForm();
             // Initialize cost inputs
             document.getElementById('stallFee').value = appData.costs.stallFee;
             document.getElementById('insurance').value = appData.costs.insurance;
@@ -1060,6 +1172,9 @@
             document.getElementById('eventName').value = appData.reportMeta.eventName;
             document.getElementById('eventDate').value = appData.reportMeta.eventDate;
             document.getElementById('eventNotes').value = appData.reportMeta.notes;
+            // Initialize end-of-day summary
+            document.getElementById('cashTotal').value = appData.finalRevenue.cash;
+            document.getElementById('cardTotal').value = appData.finalRevenue.card;
             updateReportDisplay();
         }
 
