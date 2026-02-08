@@ -48,6 +48,16 @@
         @keyframes pulse { 0%{transform:scale(1)}50%{transform:scale(1.06)}100%{transform:scale(1)} }
         .confetti-canvas { position:fixed; left:0; top:0; width:100%; height:100%; pointer-events:none; z-index:1200; }
         .notification { position: fixed; top: 20px; right: 20px; background: #4caf50; color: white; padding: 15px 20px; border-radius: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 2000; font-weight: bold; animation: slideIn 300ms ease; }
+        /* Report styling */
+        .report-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .report-header h3 { font-size: 1.8em; margin-bottom: 5px; }
+        .report-header p { margin: 5px 0; font-size: 0.95em; opacity: 0.95; }
+        .report-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .metric-card { background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #667eea; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+        .metric-card .label { font-size: 0.85em; color: #666; font-weight: 500; margin-bottom: 5px; }
+        .metric-card .value { font-size: 1.8em; color: #667eea; font-weight: bold; }
+        .metric-card.profit .value { color: #4caf50; }
+        .metric-card.costs .value { color: #ff9800; }
         @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(400px); opacity: 0; } }
     </style>
@@ -734,19 +744,44 @@
             const profit = revenue - costs;
             const cashTotal = appData.sales.filter(s => s.paymentMethod === 'Cash').reduce((sum, s) => sum + s.amount, 0);
             const cardTotal = appData.sales.filter(s => s.paymentMethod === 'Card').reduce((sum, s) => sum + s.amount, 0);
+            const teamMembersStr = appData.teamMembers && appData.teamMembers.length > 0 ? appData.teamMembers.join(', ') : 'None';
             
             const html = `
-                <p><strong>Team:</strong> ${appData.teamName}</p>
-                <p><strong>Team Members:</strong> ${appData.teamMembers && appData.teamMembers.length > 0 ? appData.teamMembers.join(', ') : 'None'}</p>
-                <p><strong>Event:</strong> ${appData.reportMeta.eventName}</p>
-                <p><strong>Date:</strong> ${appData.reportMeta.eventDate}</p>
-                <p><strong>Total Revenue:</strong> $${revenue.toFixed(2)}</p>
-                <p><strong>Cash Sales:</strong> $${cashTotal.toFixed(2)}</p>
-                <p><strong>Card Sales:</strong> $${cardTotal.toFixed(2)}</p>
-                <p><strong>Total Costs:</strong> $${costs.toFixed(2)}</p>
-                <p><strong>Net Profit:</strong> $${profit.toFixed(2)}</p>
-                <p><strong>Total Sales:</strong> ${appData.sales.length}</p>
-                <p><strong>Notes:</strong> ${appData.reportMeta.notes || 'None'}</p>
+                <div class="report-header">
+                    <h3>${appData.teamName}</h3>
+                    <p><strong>Team Members:</strong> ${teamMembersStr}</p>
+                    <p><strong>Event:</strong> ${appData.reportMeta.eventName}</p>
+                    <p><strong>Date:</strong> ${appData.reportMeta.eventDate}</p>
+                </div>
+                <div class="report-metrics">
+                    <div class="metric-card">
+                        <div class="label">Total Revenue</div>
+                        <div class="value">$${revenue.toFixed(2)}</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="label">Total Costs</div>
+                        <div class="value costs">$${costs.toFixed(2)}</div>
+                    </div>
+                    <div class="metric-card profit">
+                        <div class="label">Net Profit</div>
+                        <div class="value profit">$${profit.toFixed(2)}</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="label">Total Sales</div>
+                        <div class="value">${appData.sales.length}</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="label">Cash Sales</div>
+                        <div class="value">$${cashTotal.toFixed(2)}</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="label">Card Sales</div>
+                        <div class="value">$${cardTotal.toFixed(2)}</div>
+                    </div>
+                </div>
+                <div class="section-box">
+                    <p><strong>Notes:</strong> ${appData.reportMeta.notes || 'None'}</p>
+                </div>
             `;
             const reportEl = document.getElementById('reportContent');
             if (reportEl) reportEl.innerHTML = html;
