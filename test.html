@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market Stall App - TEST</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #667eea; min-height: 100vh; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 30px 20px; text-align: center; color: white; }
+        .header h1 { font-size: 2.5em; margin-bottom: 5px; }
+        .sync-indicator { margin-top: 15px; font-size: 0.9em; }
+        .sync-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #4caf50; margin-right: 8px; }
+        .sync-dot.offline { background: #ff9800; }
+        .tabs { display: flex; background: #f8f9fa; border-bottom: 2px solid #ddd; }
+        .tab-button { flex: 1; padding: 15px; cursor: pointer; border: none; background: none; font-size: 16px; font-weight: 500; transition: 0.3s; }
+        .tab-button.active { background: white; border-bottom: 3px solid #667eea; color: #667eea; }
+        .tab-content { display: none; padding: 30px; }
+        .tab-content.active { display: block; }
+        .section-box { margin-bottom: 20px; padding: 20px; background: #f8f9fa; border-left: 4px solid #667eea; border-radius: 5px; }
+        .btn { padding: 10px 20px; margin: 5px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-danger { background: #f5576c; color: white; }
+        input { padding: 10px; margin: 5px; border: 1px solid #ddd; border-radius: 3px; font-size: 14px; }
+        .team-list { margin: 10px 0; padding: 10px; background: white; border-radius: 3px; min-height: 30px; }
+        .team-member { background: #e3f2fd; padding: 10px; margin: 5px 0; border-radius: 3px; display: flex; justify-content: space-between; align-items: center; }
+    </style>
+</head>
+<body>
+    <script>console.log('✅ HTML loaded');</script>
+    
+    <div class="container">
+        <header class="header">
+            <h1>🎪 Market Stall Tracker</h1>
+            <div class="sync-indicator">
+                <span class="sync-dot" id="syncStatus"></span>
+                <span id="syncText">Connecting...</span>
+            </div>
+        </header>
+
+        <nav class="tabs">
+            <button class="tab-button active" data-tab="setup">Setup</button>
+            <button class="tab-button" data-tab="products">Products</button>
+            <button class="tab-button" data-tab="sales">Sales</button>
+            <button class="tab-button" data-tab="dashboard">Dashboard</button>
+        </nav>
+
+        <!-- Setup Tab -->
+        <section id="setup" class="tab-content active">
+            <h2>Setup</h2>
+            <div class="section-box">
+                <h3>Team Members</h3>
+                <div id="teamList" class="team-list"></div>
+                <input type="text" id="newTeamMember" placeholder="Enter name">
+                <button class="btn btn-primary" onclick="addTeamMember()">Add Member</button>
+            </div>
+            <div class="section-box">
+                <h3>Utilities</h3>
+                <button class="btn btn-primary" onclick="loadDemoData()">Load Demo Data</button>
+                <button class="btn btn-danger" onclick="resetData()">Reset Data</button>
+            </div>
+        </section>
+
+        <!-- Products Tab -->
+        <section id="products" class="tab-content">
+            <h2>Products</h2>
+            <div class="section-box">
+                <h3>Add Product</h3>
+                <input type="text" id="productName" placeholder="Product name">
+                <input type="number" id="productPrice" placeholder="Price" min="0" step="0.01">
+                <button class="btn btn-primary" onclick="addProduct()">Add Product</button>
+            </div>
+            <div class="section-box">
+                <h3>Products List</h3>
+                <div id="productsList"></div>
+            </div>
+        </section>
+
+        <!-- Sales Tab -->
+        <section id="sales" class="tab-content">
+            <h2>Sales</h2>
+            <div class="section-box">
+                <h3>Record Sale</h3>
+                <select id="saleProduct">
+                    <option>Select product...</option>
+                </select>
+                <input type="number" id="saleQty" placeholder="Quantity" min="1" value="1">
+                <button class="btn btn-primary" onclick="recordSale()">Record Sale</button>
+            </div>
+            <div class="section-box">
+                <h3>Sales History</h3>
+                <div id="salesList"></div>
+            </div>
+        </section>
+
+        <!-- Dashboard Tab -->
+        <section id="dashboard" class="tab-content">
+            <h2>Dashboard</h2>
+            <div class="section-box">
+                <h3>Financials</h3>
+                <p><strong>Total Revenue:</strong> $<span id="revenue">0.00</span></p>
+                <p><strong>Total Sales:</strong> <span id="saleCount">0</span></p>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        console.log('✅ Script section started');
+        
+        let appData = {
+            teamMembers: [],
+            products: [],
+            sales: []
+        };
+
+        function updateSyncStatus() {
+            const dot = document.getElementById('syncStatus');
+            const text = document.getElementById('syncText');
+            if (navigator.onLine) {
+                dot.classList.remove('offline');
+                dot.style.background = '#4caf50';
+                text.textContent = 'Live Sync ✓';
+            } else {
+                dot.classList.add('offline');
+                dot.style.background = '#ff9800';
+                text.textContent = 'Offline Mode';
+            }
+        }
+
+        function switchTab(tabName) {
+            console.log('Switching to tab:', tabName);
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+        }
+
+        function addTeamMember() {
+            const input = document.getElementById('newTeamMember');
+            const name = input.value.trim();
+            if (name) {
+                appData.teamMembers.push(name);
+                input.value = '';
+                renderTeamList();
+            }
+        }
+
+        function renderTeamList() {
+            const list = document.getElementById('teamList');
+            list.innerHTML = appData.teamMembers.map((m, i) => 
+                `<div class="team-member">${m} <button class="btn btn-danger" onclick="removeTeamMember(${i})">Remove</button></div>`
+            ).join('');
+        }
+
+        function removeTeamMember(i) {
+            appData.teamMembers.splice(i, 1);
+            renderTeamList();
+        }
+
+        function addProduct() {
+            const name = document.getElementById('productName').value.trim();
+            const price = parseFloat(document.getElementById('productPrice').value);
+            if (name && price > 0) {
+                appData.products.push({ id: Date.now(), name, price });
+                document.getElementById('productName').value = '';
+                document.getElementById('productPrice').value = '';
+                renderProducts();
+                updateProductSelect();
+            }
+        }
+
+        function renderProducts() {
+            const list = document.getElementById('productsList');
+            list.innerHTML = appData.products.map(p => 
+                `<div class="team-member">${p.name} - $${p.price.toFixed(2)} <button class="btn btn-danger" onclick="removeProduct(${p.id})">Remove</button></div>`
+            ).join('');
+        }
+
+        function removeProduct(id) {
+            appData.products = appData.products.filter(p => p.id !== id);
+            renderProducts();
+            updateProductSelect();
+        }
+
+        function updateProductSelect() {
+            const select = document.getElementById('saleProduct');
+            const current = select.value;
+            select.innerHTML = '<option>Select product...</option>' + 
+                appData.products.map(p => `<option value="${p.id}">${p.name} - $${p.price.toFixed(2)}</option>`).join('');
+            select.value = current;
+        }
+
+        function recordSale() {
+            const productId = document.getElementById('saleProduct').value;
+            const qty = parseInt(document.getElementById('saleQty').value);
+            if (productId && qty > 0) {
+                const product = appData.products.find(p => p.id == productId);
+                if (product) {
+                    appData.sales.push({ productId, qty, price: product.price, amount: qty * product.price });
+                    document.getElementById('saleQty').value = '1';
+                    renderSales();
+                    updateDashboard();
+                }
+            }
+        }
+
+        function renderSales() {
+            const list = document.getElementById('salesList');
+            list.innerHTML = appData.sales.map((s, i) => {
+                const product = appData.products.find(p => p.id == s.productId);
+                return `<div class="team-member">${product?.name || 'Unknown'} x${s.qty} = $${s.amount.toFixed(2)} <button class="btn btn-danger" onclick="removeSale(${i})">Remove</button></div>`;
+            }).join('');
+        }
+
+        function removeSale(i) {
+            appData.sales.splice(i, 1);
+            renderSales();
+            updateDashboard();
+        }
+
+        function updateDashboard() {
+            const revenue = appData.sales.reduce((sum, s) => sum + s.amount, 0);
+            document.getElementById('revenue').textContent = revenue.toFixed(2);
+            document.getElementById('saleCount').textContent = appData.sales.length;
+        }
+
+        function loadDemoData() {
+            appData.teamMembers = ['Alice', 'Bob', 'Charlie'];
+            appData.products = [
+                { id: 1, name: 'Dragon', price: 15 },
+                { id: 2, name: 'Spinner', price: 8 },
+                { id: 3, name: 'Stand', price: 12 }
+            ];
+            appData.sales = [
+                { productId: 1, qty: 2, price: 15, amount: 30 },
+                { productId: 2, qty: 3, price: 8, amount: 24 }
+            ];
+            renderAll();
+        }
+
+        function renderAll() {
+            renderTeamList();
+            renderProducts();
+            updateProductSelect();
+            renderSales();
+            updateDashboard();
+        }
+
+        function resetData() {
+            if (confirm('Reset all data?')) {
+                appData = { teamMembers: [], products: [], sales: [] };
+                renderAll();
+            }
+        }
+
+        // Setup event listeners
+        console.log('Setting up event listeners...');
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                switchTab(e.target.getAttribute('data-tab'));
+            });
+        });
+
+        // Initialize
+        console.log('Initializing app...');
+        updateSyncStatus();
+        renderAll();
+        console.log('✅ App ready!');
+
+        // Listen for online/offline
+        window.addEventListener('online', updateSyncStatus);
+        window.addEventListener('offline', updateSyncStatus);
+    </script>
+</body>
+</html>
