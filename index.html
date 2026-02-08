@@ -466,29 +466,53 @@
         }
 
         function addProduct() {
-            const name = document.getElementById('productName').value.trim();
-            const price = parseFloat(document.getElementById('productPrice').value) || 0;
-            const quantityBrought = parseInt(document.getElementById('productQuantityBrought').value);
-            
-            if (!name) {
-                showNotification('❌ Please enter a product name');
-                return;
+            try {
+                console.log('addProduct called');
+                const nameEl = document.getElementById('productName');
+                const priceEl = document.getElementById('productPrice');
+                const qtyEl = document.getElementById('productQuantityBrought');
+                
+                if (!nameEl || !priceEl || !qtyEl) {
+                    console.error('Missing form elements:', { nameEl, priceEl, qtyEl });
+                    alert('Error: Form elements not found');
+                    return;
+                }
+                
+                const name = nameEl.value.trim();
+                const price = parseFloat(priceEl.value) || 0;
+                const quantityBrought = parseInt(qtyEl.value);
+                
+                console.log('Form values:', { name, price, quantityBrought });
+                
+                if (!name) {
+                    showNotification('❌ Please enter a product name');
+                    return;
+                }
+                if (!quantityBrought || quantityBrought < 1) {
+                    showNotification('❌ Please enter quantity brought (must be at least 1)');
+                    return;
+                }
+                
+                const id = Date.now();
+                appData.products.push({ id, name, price });
+                appData.productsBrought.push({ productId: id, quantityBrought });
+                
+                console.log('Product added:', { id, name, price, quantityBrought });
+                console.log('appData.products now:', appData.products);
+                
+                nameEl.value = '';
+                priceEl.value = '';
+                qtyEl.value = '';
+                
+                renderProducts();
+                updateProductSelect();
+                renderQuickSaleButtons();
+                saveLocal();
+                showNotification(`✅ ${name} added!`);
+            } catch(e) {
+                console.error('Error in addProduct:', e);
+                alert('Error adding product: ' + e.message);
             }
-            if (!quantityBrought || quantityBrought < 1) {
-                showNotification('❌ Please enter quantity brought (must be at least 1)');
-                return;
-            }
-            
-            const id = Date.now();
-            appData.products.push({ id, name, price });
-            // Store quantity brought
-            appData.productsBrought.push({ productId: id, quantityBrought });
-            document.getElementById('productName').value = '';
-            document.getElementById('productPrice').value = '';
-            document.getElementById('productQuantityBrought').value = '';
-            renderProducts(); updateProductSelect(); renderQuickSaleButtons();
-            saveLocal();
-            showNotification(`✅ ${name} added!`);
         }
 
         function renderProducts() {
