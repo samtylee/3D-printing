@@ -243,6 +243,13 @@
                 <p><strong>Total Units Sold:</strong> <span id="dashSaleCount">0</span></p>
             </div>
             <div class="section-box">
+                <h4>Break-even Progress</h4>
+                <div class="progress-container">
+                    <div class="progress-bar" id="breakEvenBar" style="width: 0%"></div>
+                </div>
+                <p id="breakEvenText" style="margin-top: 8px; font-size: 0.9em; color: #666;">0% to break-even</p>
+            </div>
+            <div class="section-box">
                 <h4>Profit Pot</h4>
                 <p style="font-size: 1.3em; font-weight: bold; color: #4caf50;">Per-kid payout: $<span id="perKidPayout">0.00</span></p>
             </div>
@@ -772,11 +779,30 @@
             const perKidEl = document.getElementById('perKidPayout');
             if (perKidEl) {
                 if (perKid < 0) {
-                    perKidEl.textContent = `$${Math.abs(perKid).toFixed(2)} loss per kid`;
+                    perKidEl.textContent = `${Math.abs(perKid).toFixed(2)} loss per kid`;
                     perKidEl.style.color = '#f5576c';
                 } else {
                     perKidEl.textContent = perKid.toFixed(2);
                     perKidEl.style.color = '#4caf50';
+                }
+            }
+
+            // Calculate and display break-even progress
+            let breakPct = 0;
+            if (costs > 0) {
+                breakPct = Math.max(0, Math.min(100, (revenue / costs) * 100));
+            } else {
+                breakPct = revenue > 0 ? 100 : 0;
+            }
+            const breakEvenBar = document.getElementById('breakEvenBar');
+            const breakEvenText = document.getElementById('breakEvenText');
+            if (breakEvenBar) breakEvenBar.style.width = breakPct + '%';
+            if (breakEvenText) {
+                if (breakPct >= 100) {
+                    breakEvenText.textContent = `✅ Reached break-even — $${profit.toFixed(2)} profit`;
+                } else {
+                    const remaining = Math.max(0, costs - revenue);
+                    breakEvenText.textContent = `${breakPct.toFixed(0)}% to break-even — $${remaining.toFixed(2)} remaining`;
                 }
             }
 
