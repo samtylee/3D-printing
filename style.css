@@ -43,6 +43,44 @@ body {
     opacity: 0.95;
 }
 
+/* Sync Indicator */
+.sync-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 15px;
+    font-size: 0.9em;
+}
+
+.sync-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #4caf50;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.sync-dot.offline {
+    background: #ff9800;
+    animation: pulse-orange 2s ease-in-out infinite;
+}
+
+.sync-text {
+    color: white;
+    font-weight: bold;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+@keyframes pulse-orange {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
 /* ==================== NAVIGATION TABS ==================== */
 
 .tabs {
