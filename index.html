@@ -77,6 +77,11 @@
         <section id="setup" class="tab-content active">
             <h2>Setup</h2>
             <div class="section-box">
+                <h3>Team Name</h3>
+                <input type="text" id="teamName" placeholder="Enter team name" value="Team 1">
+                <button class="btn btn-primary" onclick="saveTeamName()">Save Team Name</button>
+            </div>
+            <div class="section-box">
                 <h3>Team Members</h3>
                 <div id="teamList" class="team-list"></div>
                 <input type="text" id="newTeamMember" placeholder="Enter name">
@@ -254,6 +259,7 @@
         console.log('✅ Market Stall App (Offline Mode)');
 
         let appData = {
+            teamName: 'Team 1',
             teamMembers: [],
             products: [],
             sales: [],
@@ -704,6 +710,14 @@
             }, 2000);
         }
 
+        function saveTeamName() {
+            appData.teamName = document.getElementById('teamName').value.trim();
+            if (appData.teamName) {
+                saveLocal();
+                showNotification('✅ Team name saved!');
+            }
+        }
+
         function saveReportMeta() {
             appData.reportMeta.eventName = document.getElementById('eventName').value;
             appData.reportMeta.eventDate = document.getElementById('eventDate').value;
@@ -722,6 +736,7 @@
             const cardTotal = appData.sales.filter(s => s.paymentMethod === 'Card').reduce((sum, s) => sum + s.amount, 0);
             
             const html = `
+                <p><strong>Team:</strong> ${appData.teamName}</p>
                 <p><strong>Event:</strong> ${appData.reportMeta.eventName}</p>
                 <p><strong>Date:</strong> ${appData.reportMeta.eventDate}</p>
                 <p><strong>Total Revenue:</strong> $${revenue.toFixed(2)}</p>
@@ -845,6 +860,8 @@
 
             // Event details
             doc.setFontSize(11);
+            doc.text(`Team: ${appData.teamName}`, margin, yPos);
+            yPos += lineHeight;
             doc.text(`Event: ${appData.reportMeta.eventName}`, margin, yPos);
             yPos += lineHeight;
             doc.text(`Date: ${appData.reportMeta.eventDate}`, margin, yPos);
