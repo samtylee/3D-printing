@@ -1211,6 +1211,16 @@
         }
 
         function renderAll() {
+            // Ensure all required properties exist before rendering
+            if (!appData.productsBrought) appData.productsBrought = [];
+            if (!appData.finalRevenue) appData.finalRevenue = { cash: 0, card: 0 };
+            if (!appData.stockTake) appData.stockTake = [];
+            if (!appData.costs) appData.costs = { stallFee: 175, insurance: 50, squareReader: 50 };
+            if (!appData.reportMeta) appData.reportMeta = { eventName: 'Glenferrie Festival', eventDate: new Date().toISOString().split('T')[0], notes: '' };
+            if (!appData.teamMembers) appData.teamMembers = [];
+            if (!appData.products) appData.products = [];
+            if (!appData.sales) appData.sales = [];
+            
             renderTeamList(); renderProducts(); updateProductSelect(); renderSales(); updateDashboard();
             renderQuickSaleButtons(); renderStockTakeForm();
             // Initialize cost inputs
@@ -1230,7 +1240,19 @@
 
         function resetData() {
             if (confirm('Reset all data?')) {
-                appData = { teamMembers: [], products: [], sales: [], costs: { stallFee: 175, insurance: 50, squareReader: 50 }, reportMeta: { eventName: 'Glenferrie Festival', eventDate: new Date().toISOString().split('T')[0], notes: '' }, currentSalesMode: 'quick', pendingProductId: null };
+                appData = { 
+                    teamName: 'Team 1',
+                    teamMembers: [], 
+                    products: [], 
+                    sales: [], 
+                    productsBrought: [],
+                    finalRevenue: { cash: 0, card: 0 },
+                    stockTake: [],
+                    costs: { stallFee: 175, insurance: 50, squareReader: 50 }, 
+                    reportMeta: { eventName: 'Glenferrie Festival', eventDate: new Date().toISOString().split('T')[0], notes: '' }, 
+                    currentSalesMode: 'quick', 
+                    pendingProductId: null 
+                };
                 renderAll();
                 saveLocal();
             }
