@@ -412,7 +412,13 @@
                 const j = localStorage.getItem('appData');
                 if (j) {
                     const loaded = JSON.parse(j);
-                    appData = loaded;
+                    // If old format detected (has sales but no productsBrought), clear and use fresh data
+                    if (loaded.sales && loaded.sales.length > 0 && (!loaded.productsBrought || loaded.productsBrought.length === 0)) {
+                        console.log('Old data format detected, clearing for post-event migration');
+                        localStorage.removeItem('appData');
+                    } else {
+                        appData = loaded;
+                    }
                 }
             } catch(e){
                 console.error('Error loading from localStorage:', e);
