@@ -749,6 +749,14 @@
             const cardTotal = appData.sales.filter(s => s.paymentMethod === 'Card').reduce((sum, s) => sum + s.amount, 0);
             const teamMembersStr = appData.teamMembers && appData.teamMembers.length > 0 ? appData.teamMembers.join(', ') : 'None';
             
+            // Calculate break-even
+            let breakPct = 0;
+            if (costs > 0) breakPct = Math.max(0, Math.min(100, (revenue / costs) * 100));
+            else breakPct = revenue > 0 ? 100 : 0;
+            
+            // Calculate per-kid payout
+            const perKid = (profit > 0 && appData.teamMembers && appData.teamMembers.length > 0) ? (profit / appData.teamMembers.length) : 0;
+            
             const html = `
                 <div class="report-header">
                     <h3>${appData.teamName}</h3>
@@ -781,6 +789,19 @@
                         <div class="label">Card Sales</div>
                         <div class="value">$${cardTotal.toFixed(2)}</div>
                     </div>
+                </div>
+                <div class="section-box">
+                    <h4>Break-even Progress</h4>
+                    <div class="progress-container">
+                        <div class="progress-bar" style="width: ${breakPct}%"></div>
+                    </div>
+                    <p style="margin-top: 8px; font-size: 0.9em; color: #666;">
+                        ${breakPct >= 100 ? `✅ Reached break-even — $${profit.toFixed(2)} profit` : `${breakPct.toFixed(0)}% to break-even — $${Math.max(0, (costs - revenue)).toFixed(2)} remaining`}
+                    </p>
+                </div>
+                <div class="section-box">
+                    <h4>Profit Pot</h4>
+                    <p style="font-size: 1.3em; font-weight: bold; color: #4caf50;">Per-kid payout: $${perKid.toFixed(2)}</p>
                 </div>
                 <div class="section-box">
                     <p><strong>Notes:</strong> ${appData.reportMeta.notes || 'None'}</p>
