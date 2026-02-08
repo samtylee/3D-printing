@@ -261,25 +261,11 @@
 
         <!-- Reports Tab -->
         <section id="reports" class="tab-content">
-            <h2>Reports</h2>
+            <h2>Export Report</h2>
             <div class="section-box">
-                <h3>Event Details</h3>
-                <label>Event Name</label>
-                <input type="text" id="eventName" placeholder="e.g., Glenferrie Festival" value="Glenferrie Festival">
-                <label>Event Date</label>
-                <input type="date" id="eventDate">
-                <label>Notes</label>
-                <textarea id="eventNotes" placeholder="Add any notes..." rows="3"></textarea>
-                <button class="btn btn-primary" onclick="saveReportMeta()">Save Report</button>
-            </div>
-            <div class="section-box">
-                <h3>Summary Report</h3>
-                <div id="reportContent"></div>
-                <div id="reportExtras" style="margin-top:12px;">
-                    <div id="topSellerBadge" style="font-weight:700; margin-bottom:8px;">⭐ Top Seller: None</div>
-                    <canvas id="salesChart" width="600" height="240" style="width:100%; max-width:600px; height:240px; background:#fff; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.08);"></canvas>
-                </div>
-                <button class="btn btn-primary" onclick="downloadReportAsPDF()" style="margin-top:15px;">📥 Download PDF Report</button>
+                <h3>Generate PDF Export</h3>
+                <p>Export all dashboard data including team info, metrics, break-even progress, and product leaderboard.</p>
+                <button class="btn btn-primary" onclick="exportDashboardAsPDF()" style="margin-top:15px; padding: 15px 30px; font-size: 18px;">📥 Download PDF Report</button>
             </div>
         </section>
     </div>
@@ -936,123 +922,10 @@
         }
 
         function updateReportDisplay() {
-            // POST-EVENT: Use final revenue totals
-            const revenue = appData.finalRevenue.cash + appData.finalRevenue.card;
-            const costs = appData.costs.stallFee + appData.costs.insurance + appData.costs.squareReader;
-            const profit = revenue - costs;
-            const cashTotal = appData.finalRevenue.cash;
-            const cardTotal = appData.finalRevenue.card;
-            const teamMembersStr = appData.teamMembers && appData.teamMembers.length > 0 ? appData.teamMembers.join(', ') : 'None';
-            
-            // Calculate per-kid payout (can be negative)
-            const perKid = appData.teamMembers && appData.teamMembers.length > 0 ? (profit / appData.teamMembers.length) : 0;
-            const perKidText = perKid < 0 ? `$${Math.abs(perKid).toFixed(2)} loss per kid` : `$${perKid.toFixed(2)}`;
-            
-            // Get inventory metrics
-            const inventoryMetrics = computeInventoryMetrics();
-            const totalUnitsSold = inventoryMetrics.reduce((sum, m) => sum + m.quantitySold, 0);
-            
-            const html = `
-                <div class="report-header">
-                    <h3>${appData.teamName}</h3>
-                    <p><strong>Team Members:</strong> ${teamMembersStr}</p>
-                    <p><strong>Event:</strong> ${appData.reportMeta.eventName}</p>
-                    <p><strong>Date:</strong> ${appData.reportMeta.eventDate}</p>
-                </div>
-                <div class="report-metrics">
-                    <div class="metric-card">
-                        <div class="label">Total Revenue</div>
-                        <div class="value">$${revenue.toFixed(2)}</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="label">Total Costs</div>
-                        <div class="value costs">$${costs.toFixed(2)}</div>
-                    </div>
-                    <div class="metric-card profit">
-                        <div class="label">Net Profit</div>
-                        <div class="value profit">$${profit.toFixed(2)}</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="label">Units Sold</div>
-                        <div class="value">${totalUnitsSold}</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="label">Cash Sales</div>
-                        <div class="value">$${cashTotal.toFixed(2)}</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="label">Card Sales</div>
-                        <div class="value">$${cardTotal.toFixed(2)}</div>
-                    </div>
-                </div>
-                <div class="section-box">
-                    <h4>Profit Pot</h4>
-                    <p style="font-size: 1.3em; font-weight: bold; color: #4caf50;">Per-kid payout: ${perKidText}</p>
-                </div>
-                <div class="section-box">
-                    <h3>Product Leaderboard</h3>
-                    <table style="width:100%; border-collapse: collapse;">
-                        <tr style="background:#f8f9fa; font-weight:bold;">
-                            <th style="padding:8px; text-align:left; border-bottom:2px solid #ddd;">Rank</th>
-                            <th style="padding:8px; text-align:left; border-bottom:2px solid #ddd;">Product</th>
-                            <th style="padding:8px; text-align:center; border-bottom:2px solid #ddd;">Sold</th>
-                            <th style="padding:8px; text-align:center; border-bottom:2px solid #ddd;">Sell-Through</th>
-                            <th style="padding:8px; text-align:right; border-bottom:2px solid #ddd;">Revenue</th>
-                        </tr>
-                        ${[...inventoryMetrics].sort((a, b) => b.quantitySold - a.quantitySold).map((m, idx) => `
-                        <tr style="border-bottom:1px solid #ddd;">
-                            <td style="padding:8px; font-weight:bold;">${idx + 1}${idx === 0 ? ' ⭐' : ''}</td>
-                            <td style="padding:8px;">${m.product.name}</td>
-                            <td style="padding:8px; text-align:center;">${m.quantitySold}/${m.quantityBrought}</td>
-                            <td style="padding:8px; text-align:center;">${m.sellThrough}%</td>
-                            <td style="padding:8px; text-align:right;">$${m.revenue.toFixed(2)}</td>
-                        </tr>
-                        `).join('')}
-                    </table>
-                </div>
-                <div class="section-box">
-                    <p><strong>Notes:</strong> ${appData.reportMeta.notes || 'None'}</p>
-                </div>
-            `;
-            const reportEl = document.getElementById('reportContent');
-            if (reportEl) reportEl.innerHTML = html;
+            // No longer needed - Reports tab is now just PDF export
         }
 
-        function drawSalesChart(productSales) {
-            const canvas = document.getElementById('salesChart');
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            const chartHeight = canvas.height;
-            const chartWidth = canvas.width;
-            ctx.clearRect(0, 0, chartWidth, chartHeight);
-
-            if (!productSales || productSales.length === 0) return;
-            const maxUnits = Math.max(...productSales.map(ps => ps.units), 1);
-            const barWidth = chartWidth / (productSales.length * 1.6);
-            productSales.forEach((ps, i) => {
-                const barHeight = (ps.units / maxUnits) * (chartHeight - 80);
-                const x = i * (barWidth * 1.5) + 40;
-                const y = chartHeight - 40 - barHeight;
-                ctx.fillStyle = '#667eea';
-                ctx.fillRect(x, y, barWidth, barHeight);
-                ctx.fillStyle = '#333';
-                ctx.textAlign = 'center';
-                ctx.fillText(ps.product.name, x + barWidth / 2, chartHeight - 10);
-                ctx.fillText(ps.units.toString(), x + barWidth / 2, y - 6);
-            });
-            // axes
-            ctx.strokeStyle = '#ddd';
-            ctx.beginPath();
-            ctx.moveTo(30, chartHeight - 40);
-            ctx.lineTo(chartWidth - 10, chartHeight - 40);
-            ctx.stroke();
-        }
-
-        function printReport() {
-            window.print();
-        }
-
-        function downloadReportAsPDF() {
+        function exportDashboardAsPDF() {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('p', 'mm', 'a4');
             let yPos = 15;
@@ -1061,40 +934,32 @@
             const margin = 10;
             const lineHeight = 5;
 
-            // Calculate metrics upfront
-            const revenue = appData.sales.reduce((sum, s) => sum + s.amount, 0);
+            // Calculate metrics
+            const revenue = appData.finalRevenue.cash + appData.finalRevenue.card;
             const costs = appData.costs.stallFee + appData.costs.insurance + appData.costs.squareReader;
             const profit = revenue - costs;
-            const cashTotal = appData.sales.filter(s => s.paymentMethod === 'Cash').reduce((sum, s) => sum + s.amount, 0);
-            const cardTotal = appData.sales.filter(s => s.paymentMethod === 'Card').reduce((sum, s) => sum + s.amount, 0);
             const breakPct = costs > 0 ? Math.max(0, Math.min(100, (revenue / costs) * 100)) : (revenue > 0 ? 100 : 0);
-            const perKid = (profit > 0 && appData.teamMembers && appData.teamMembers.length > 0) ? (profit / appData.teamMembers.length) : 0;
-
-            const productSales = appData.products.map(p => ({ product: p, units: 0, revenue: 0 }));
-            appData.sales.forEach(s => {
-                const ps = productSales.find(x => x.product.id == s.productId);
-                if (ps) { ps.units += s.qty; ps.revenue += s.amount; }
-            });
-            const topSeller = productSales.reduce((max, ps) => ps.units > max.units ? ps : max, { units: 0 });
+            const perKid = appData.teamMembers && appData.teamMembers.length > 0 ? (profit / appData.teamMembers.length) : 0;
+            const inventoryMetrics = computeInventoryMetrics();
+            const totalUnitsSold = inventoryMetrics.reduce((sum, m) => sum + m.quantitySold, 0);
 
             // Title
             doc.setFontSize(16);
             doc.text('Market Stall Report', margin, yPos);
             yPos += 10;
 
-            // Event details
+            // Team info and date
             doc.setFontSize(11);
             doc.text(`Team: ${appData.teamName}`, margin, yPos);
             yPos += lineHeight;
             const teamMembersList = appData.teamMembers && appData.teamMembers.length > 0 ? appData.teamMembers.join(', ') : 'None';
             doc.text(`Team Members: ${teamMembersList}`, margin, yPos);
             yPos += lineHeight;
-            doc.text(`Event: ${appData.reportMeta.eventName}`, margin, yPos);
-            yPos += lineHeight;
-            doc.text(`Date: ${appData.reportMeta.eventDate}`, margin, yPos);
+            const today = new Date().toISOString().split('T')[0];
+            doc.text(`Date: ${today}`, margin, yPos);
             yPos += lineHeight + 3;
 
-            // Key Metrics section
+            // Key Metrics
             doc.setFontSize(12);
             doc.text('Key Metrics', margin, yPos);
             yPos += 6;
@@ -1102,120 +967,51 @@
 
             const metricsLines = [
                 `Total Revenue: $${revenue.toFixed(2)}`,
-                `Cash Sales: $${cashTotal.toFixed(2)}`,
-                `Card Sales: $${cardTotal.toFixed(2)}`,
-                `Total Costs: $${costs.toFixed(2)} (Stall: $${appData.costs.stallFee.toFixed(2)}, Insurance: $${appData.costs.insurance.toFixed(2)}, Reader: $${appData.costs.squareReader.toFixed(2)})`,
+                `  • Cash: $${appData.finalRevenue.cash.toFixed(2)}`,
+                `  • Card: $${appData.finalRevenue.card.toFixed(2)}`,
+                `Total Costs: $${costs.toFixed(2)}`,
                 `Net Profit: $${profit.toFixed(2)}`,
-                `Total Sales: ${appData.sales.length}`,
-                '',
+                `Total Units Sold: ${totalUnitsSold}`,
+                ``,
                 `Break-even Progress: ${breakPct.toFixed(0)}%`,
-                breakPct >= 100 ? `Status: Reached break-even` : `Remaining to break-even: $${Math.max(0, (costs - revenue)).toFixed(2)}`,
-                '',
+                breakPct >= 100 ? `✅ Reached break-even!` : `Remaining: $${Math.max(0, costs - revenue).toFixed(2)}`,
                 `Per-Kid Payout: $${perKid.toFixed(2)}`,
-                `Top Seller: ${topSeller.units > 0 ? `${topSeller.product.name} (${topSeller.units} units)` : 'None'}`
             ];
 
             metricsLines.forEach(line => {
-                if (yPos > pageHeight - margin - 50) {
+                if (yPos > pageHeight - 30) {
                     doc.addPage();
-                    yPos = margin;
+                    yPos = 15;
                 }
-                doc.text(line, margin, yPos);
+                doc.text(line, margin + 2, yPos);
                 yPos += lineHeight;
             });
 
-            // Product sales breakdown
-            if (yPos > pageHeight - margin - 50) {
-                doc.addPage();
-                yPos = margin;
-            }
             yPos += 5;
-            doc.setFontSize(12);
-            doc.text('Product Sales Breakdown', margin, yPos);
-            yPos += 7;
-            doc.setFontSize(10);
 
-            productSales.forEach(ps => {
-                if (ps.units > 0) {
-                    if (yPos > pageHeight - margin - 20) {
-                        doc.addPage();
-                        yPos = margin;
-                    }
-                    doc.text(`${ps.product.name}: ${ps.units} units - $${ps.revenue.toFixed(2)}`, margin + 5, yPos);
-                    yPos += lineHeight;
-                }
-            });
-
-            // Add mini sales chart from dashboard
-            const miniChart = document.getElementById('miniSalesChart');
-            if (miniChart) {
-                if (yPos > pageHeight - margin - 35) {
-                    doc.addPage();
-                    yPos = margin;
-                }
-                yPos += 5;
-                doc.setFontSize(11);
-                doc.text('Break-even Progress', margin, yPos);
+            // Product Leaderboard
+            if (inventoryMetrics.length > 0) {
+                doc.setFontSize(12);
+                doc.text('Product Leaderboard (by Units Sold)', margin, yPos);
                 yPos += 6;
-                
-                // Create canvas for break-even bar
-                const breakEvenCanvas = document.createElement('canvas');
-                breakEvenCanvas.width = 600;
-                breakEvenCanvas.height = 60;
-                const ctx = breakEvenCanvas.getContext('2d');
-                ctx.fillStyle = '#f0f0f0';
-                ctx.fillRect(0, 0, 600, 40);
-                ctx.fillStyle = breakPct >= 100 ? '#4caf50' : '#667eea';
-                ctx.fillRect(0, 0, (breakPct / 100) * 600, 40);
-                ctx.strokeStyle = '#ddd';
-                ctx.strokeRect(0, 0, 600, 40);
-                ctx.fillStyle = '#333';
-                ctx.font = 'bold 14px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText(`${breakPct.toFixed(0)}%`, 300, 28);
-                
-                try {
-                    const breakEvenImage = breakEvenCanvas.toDataURL('image/png');
-                    const chartWidth = pageWidth - (margin * 2);
-                    const chartHeight = (chartWidth / 600) * 60;
-                    doc.addImage(breakEvenImage, 'PNG', margin, yPos, chartWidth, chartHeight);
-                    yPos += chartHeight + 3;
-                } catch (e) {
-                    console.log('Could not embed break-even bar:', e);
-                }
-
                 doc.setFontSize(9);
-                doc.text(breakPct >= 100 ? `Status: Reached break-even` : `Remaining to break-even: $${Math.max(0, (costs - revenue)).toFixed(2)}`, margin, yPos);
-                yPos += 5;
+
+                const sorted = [...inventoryMetrics].sort((a, b) => b.quantitySold - a.quantitySold);
+                sorted.forEach((m, idx) => {
+                    if (yPos > pageHeight - 15) {
+                        doc.addPage();
+                        yPos = 15;
+                    }
+                    const rank = idx + 1;
+                    const badge = idx === 0 ? '⭐' : `${rank}.`;
+                    const line = `${badge} ${m.product.name}: ${m.quantitySold}/${m.quantityBrought} sold (${m.sellThrough}%) - $${m.revenue.toFixed(2)}`;
+                    doc.text(line, margin + 3, yPos);
+                    yPos += lineHeight;
+                });
             }
 
-            // Add full sales chart from reports (single chart only)
-            const canvas = document.getElementById('salesChart');
-            if (canvas) {
-                if (yPos > pageHeight - margin - 120) {
-                    doc.addPage();
-                    yPos = margin;
-                }
-                yPos += 5;
-                doc.setFontSize(11);
-                doc.text('Sales Chart by Product', margin, yPos);
-                yPos += 5;
-                try {
-                    const chartImage = canvas.toDataURL('image/png');
-                    const chartWidth = pageWidth - (margin * 2);
-                    const chartHeight = (chartWidth / 600) * 240;
-                    doc.addImage(chartImage, 'PNG', margin, yPos, chartWidth, chartHeight);
-                    yPos += chartHeight + 5;
-                } catch (e) {
-                    console.log('Could not embed chart:', e);
-                }
-            }
-
-            // Per-kid pages - REMOVED
-            // Team member names are now shown in report summary
-
-            // Download
-            const filename = `Market_Stall_Report_${appData.reportMeta.eventDate || 'report'}.pdf`;
+            // Save PDF
+            const filename = `Market_Stall_Report_${appData.teamName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
             doc.save(filename);
         }
 
