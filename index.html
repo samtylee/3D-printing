@@ -39,6 +39,7 @@
         label { display: block; margin-top: 10px; margin-bottom: 5px; font-weight: 500; }
         select { padding: 10px; margin: 5px; border: 1px solid #ddd; border-radius: 3px; font-size: 14px; }
         textarea { padding: 10px; margin: 5px; border: 1px solid #ddd; border-radius: 3px; font-size: 14px; width: 100%; font-family: Arial; }
+        .qty-buttons { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 15px 0; }
     </style>
     </style>
 </head>
@@ -118,6 +119,25 @@
                     <h3>Tap a Product to Sell</h3>
                     <div id="quickSaleButtons" class="quick-sale-grid"></div>
                 </div>
+                <div id="quantityModal" class="modal hidden">
+                    <div class="modal-content">
+                        <h3 id="quantityProductName">Product</h3>
+                        <p>How many?</p>
+                        <div class="qty-buttons">
+                            <button class="btn btn-primary" onclick="setQtyAndAsk(1)">1</button>
+                            <button class="btn btn-primary" onclick="setQtyAndAsk(2)">2</button>
+                            <button class="btn btn-primary" onclick="setQtyAndAsk(3)">3</button>
+                            <button class="btn btn-primary" onclick="setQtyAndAsk(5)">5</button>
+                            <button class="btn btn-primary" onclick="setQtyAndAsk(10)">10</button>
+                        </div>
+                        <div style="margin-top: 15px;">
+                            <label>Or enter qty:</label>
+                            <input type="number" id="customQty" min="1" value="1" style="width: 60px;">
+                            <button class="btn btn-primary" onclick="setQtyAndAsk(parseInt(document.getElementById('customQty').value))">Set</button>
+                        </div>
+                        <button class="btn btn-secondary" onclick="closeQuantityModal()">Cancel</button>
+                    </div>
+                </div>
                 <div id="paymentModal" class="modal hidden">
                     <div class="modal-content">
                         <h3 id="paymentProductName">Product</h3>
@@ -128,16 +148,15 @@
                     </div>
                 </div>
                 <div class="section-box">
-                    <h3>Quick Actions</h3>
-                    <button class="btn btn-secondary" onclick="adjustLastSaleQty(1)">+1</button>
-                    <button class="btn btn-secondary" onclick="adjustLastSaleQty(5)">+5</button>
-                    <button class="btn btn-danger" onclick="undoLastSale()">↩️ Undo</button>
-                </div>
-                <div class="section-box">
                     <h3>Running Totals</h3>
                     <p><strong>Total Revenue:</strong> $<span id="quickTotalRevenue">0.00</span></p>
                     <p><strong>Cash Sales:</strong> $<span id="quickCashTotal">0.00</span></p>
                     <p><strong>Card Sales:</strong> $<span id="quickCardTotal">0.00</span></p>
+                </div>
+                <div class="section-box">
+                    <h3>Last Sale</h3>
+                    <p id="lastSaleInfo">No sales yet</p>
+                    <button class="btn btn-danger" onclick="undoLastSale()">↩️ Undo Last Sale</button>
                 </div>
             </div>
 
@@ -146,7 +165,7 @@
                 <div class="section-box">
                     <h3>Record a Sale</h3>
                     <label>Product</label>
-                    <select id="saleProductSelect">
+                    <select id="saleProductSelect" onchange="autoPopulatePrice()">
                         <option value="">-- Select a Product --</option>
                     </select>
                     <label>Quantity</label>
@@ -221,7 +240,9 @@
                 notes: ""
             },
             currentSalesMode: 'quick',
-            pendingProductId: null
+            pendingProductId: null,
+            pendingQty: 1,
+            pendingProductPrice: 0
         };
 
         // Local storage helpers
@@ -339,8 +360,25 @@
 
         function openPaymentModal(productId, productName, price) {
             appData.pendingProductId = productId;
-            document.getElementById('paymentProductName').textContent = `${productName} - $${price.toFixed(2)}`;
-            document.getElementById('paymentModal').classList.remove('hidden');
+            appData.pendingProductPrice = price;
+            document.getElementById('quantityProductName').textContent = `${productName} - $${price.toFixed(2)}`;
+            document.getElementById('quantityModal').classList.remove('hidden');
+        }
+
+        function closeQuantityModal() {
+            document.getElementById('quantityModal').classList.add('hidden');
+            appData.pendingProductId = null;
+            appData.pendingQty = 1;
+        }
+
+        function setQtyAndAsk(qty) {
+            appData.pendingQty = qty;
+            closeQuantityModal();
+            const product = appData.products.find(p => p.id == appData.pendingProductId);
+            if (product) {
+                document.getElementById('paymentProductName').textContent = `${product.name} x${qty} = $${(qty * product.price).toFixed(2)}`;
+                document.getElementById('paymentModal').classList.remove('hidden');
+            }
         }
 
         function closePaymentModal() {
@@ -352,16 +390,38 @@
             if (!appData.pendingProductId) return;
             const product = appData.products.find(p => p.id == appData.pendingProductId);
             if (product) {
+                const qty = appData.pendingQty || 1;
                 appData.sales.push({ 
                     productId: appData.pendingProductId, 
-                    qty: 1, 
+                    qty: qty, 
                     price: product.price, 
-                    amount: product.price,
+                    amount: qty * product.price,
                     paymentMethod: paymentMethod
                 });
                 closePaymentModal();
+                updateLastSaleInfo();
                 renderSales(); updateDashboard();
                 saveLocal();
+            }
+        }
+
+        function updateLastSaleInfo() {
+            if (appData.sales.length > 0) {
+                const last = appData.sales[appData.sales.length - 1];
+                const product = appData.products.find(p => p.id == last.productId);
+                document.getElementById('lastSaleInfo').textContent = `${product?.name || 'Unknown'} x${last.qty} (${last.paymentMethod})`;
+            }
+        }
+
+        function autoPopulatePrice() {
+            const productId = parseInt(document.getElementById('saleProductSelect').value);
+            if (productId) {
+                const product = appData.products.find(p => p.id === productId);
+                if (product) {
+                    document.getElementById('saleUnitPrice').value = product.price.toFixed(2);
+                }
+            } else {
+                document.getElementById('saleUnitPrice').value = '';
             }
         }
 
@@ -390,8 +450,9 @@
         function adjustLastSaleQty(delta) {
             if (appData.sales.length > 0) {
                 const last = appData.sales[appData.sales.length - 1];
-                last.qty += delta;
+                last.qty = Math.max(1, last.qty + delta);
                 last.amount = last.qty * last.price;
+                updateLastSaleInfo();
                 renderSales(); updateDashboard();
                 saveLocal();
             }
@@ -400,6 +461,7 @@
         function undoLastSale() {
             if (appData.sales.length > 0) {
                 appData.sales.pop();
+                updateLastSaleInfo();
                 renderSales(); updateDashboard();
                 saveLocal();
             }
