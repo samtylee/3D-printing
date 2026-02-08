@@ -1038,9 +1038,9 @@
                     doc.setFontSize(8);
                     doc.setFont(undefined, 'bold');
                     doc.text('Rank', margin + 1, yPos);
-                    doc.text('Product', margin + 8, yPos);
-                    doc.text('Sold', margin + 55, yPos);
-                    doc.text('S-Through %', margin + 75, yPos);
+                    doc.text('Product', margin + 10, yPos);
+                    doc.text('Sold', margin + 65, yPos);
+                    doc.text('Sell-Through %', margin + 85, yPos);
                     doc.text('Revenue', pageWidth - margin - 15, yPos, { align: 'right' });
                     yPos += 6;
                     
@@ -1065,11 +1065,12 @@
                         const sold = `${m.quantitySold}/${m.quantityBrought}`;
                         const sellThrough = `${m.sellThrough}%`;
                         const revStr = `$${m.revenue.toFixed(2)}`;
+                        const productName = m.product.name.substring(0, 20);
                         
-                        doc.text(rank, margin + 1, yPos);
-                        doc.text(m.product.name.substring(0, 15), margin + 8, yPos);
-                        doc.text(sold, margin + 55, yPos);
-                        doc.text(sellThrough, margin + 75, yPos);
+                        doc.text(rank, margin + 3, yPos);
+                        doc.text(productName, margin + 10, yPos);
+                        doc.text(sold, margin + 65, yPos);
+                        doc.text(sellThrough, margin + 85, yPos);
                         doc.text(revStr, pageWidth - margin - 15, yPos, { align: 'right' });
                         yPos += 5;
                     });
