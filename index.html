@@ -79,7 +79,6 @@
             <button class="tab-button" data-tab="products">Products</button>
             <button class="tab-button" data-tab="endOfDaySummary">📋 End-of-Day</button>
             <button class="tab-button" data-tab="dashboard">Dashboard</button>
-            <button class="tab-button" data-tab="reports">Reports</button>
             <button class="tab-button" data-tab="sales" style="display:none;">Sales</button>
         </nav>
 
@@ -257,15 +256,8 @@
                 <h3>Product Leaderboard (by Units Sold)</h3>
                 <div id="leaderboard"></div>
             </div>
-        </section>
-
-        <!-- Reports Tab -->
-        <section id="reports" class="tab-content">
-            <h2>Export Report</h2>
             <div class="section-box">
-                <h3>Generate PDF Export</h3>
-                <p>Export all dashboard data including team info, metrics, break-even progress, and product leaderboard.</p>
-                <button class="btn btn-primary" onclick="exportDashboardAsPDF()" style="margin-top:15px; padding: 15px 30px; font-size: 18px;">📥 Download PDF Report</button>
+                <button class="btn btn-primary" onclick="exportDashboardAsPDF()" style="width: 100%; padding: 15px; font-size: 16px;">📥 Download PDF Report</button>
             </div>
         </section>
     </div>
