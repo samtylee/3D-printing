@@ -25,6 +25,20 @@
         input { padding: 10px; margin: 5px; border: 1px solid #ddd; border-radius: 3px; font-size: 14px; }
         .team-list { margin: 10px 0; padding: 10px; background: white; border-radius: 3px; min-height: 30px; }
         .team-member { background: #e3f2fd; padding: 10px; margin: 5px 0; border-radius: 3px; display: flex; justify-content: space-between; align-items: center; }
+        .mode-toggle { display: flex; gap: 10px; margin-bottom: 20px; }
+        .mode-btn { flex: 1; padding: 10px 15px; border: 2px solid #ddd; background: white; cursor: pointer; border-radius: 5px; font-weight: 500; transition: 0.3s; }
+        .mode-btn.active { background: #667eea; color: white; border-color: #667eea; }
+        .sales-mode { display: none; }
+        .sales-mode.active { display: block; }
+        .quick-sale-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+        .product-btn { padding: 15px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px; }
+        .product-btn:hover { background: #5568d3; }
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.hidden { display: none !important; }
+        .modal-content { background: white; padding: 30px; border-radius: 10px; text-align: center; min-width: 300px; }
+        label { display: block; margin-top: 10px; margin-bottom: 5px; font-weight: 500; }
+        select { padding: 10px; margin: 5px; border: 1px solid #ddd; border-radius: 3px; font-size: 14px; }
+        textarea { padding: 10px; margin: 5px; border: 1px solid #ddd; border-radius: 3px; font-size: 14px; width: 100%; font-family: Arial; }
     </style>
     <!-- Firebase SDK (compat builds for global namespace) -->
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
@@ -47,6 +61,7 @@
             <button class="tab-button" data-tab="products">Products</button>
             <button class="tab-button" data-tab="sales">Sales</button>
             <button class="tab-button" data-tab="dashboard">Dashboard</button>
+            <button class="tab-button" data-tab="reports">Reports</button>
         </nav>
 
         <!-- Setup Tab -->
@@ -57,6 +72,17 @@
                 <div id="teamList" class="team-list"></div>
                 <input type="text" id="newTeamMember" placeholder="Enter name">
                 <button class="btn btn-primary" onclick="addTeamMember()">Add Member</button>
+            </div>
+            <div class="section-box">
+                <h3>Shared Costs</h3>
+                <label>Stall Fee (AUD)</label>
+                <input type="number" id="stallFee" min="0" step="0.01" value="175">
+                <label>Public Liability Insurance (AUD)</label>
+                <input type="number" id="insurance" min="0" step="0.01" value="50">
+                <label>Square Reader (AUD)</label>
+                <input type="number" id="squareReader" min="0" step="0.01" value="50">
+                <p><strong>Total Shared Costs: $<span id="totalCosts">275.00</span></strong></p>
+                <button class="btn btn-primary" onclick="updateCosts()">Save Costs</button>
             </div>
             <div class="section-box">
                 <h3>Utilities</h3>
@@ -83,17 +109,64 @@
         <!-- Sales Tab -->
         <section id="sales" class="tab-content">
             <h2>Sales</h2>
-            <div class="section-box">
-                <h3>Record Sale</h3>
-                <select id="saleProduct">
-                    <option>Select product...</option>
-                </select>
-                <input type="number" id="saleQty" placeholder="Quantity" min="1" value="1">
-                <button class="btn btn-primary" onclick="recordSale()">Record Sale</button>
+            <div class="mode-toggle">
+                <button class="mode-btn active" data-mode="quick" onclick="switchSalesMode('quick')">⚡ Quick Sale Mode</button>
+                <button class="mode-btn" data-mode="detailed" onclick="switchSalesMode('detailed')">📋 Detailed Entry</button>
             </div>
-            <div class="section-box">
-                <h3>Sales History</h3>
-                <div id="salesList"></div>
+
+            <!-- Quick Sale Mode -->
+            <div id="quickSaleMode" class="sales-mode active">
+                <div class="section-box">
+                    <h3>Tap a Product to Sell</h3>
+                    <div id="quickSaleButtons" class="quick-sale-grid"></div>
+                </div>
+                <div id="paymentModal" class="modal hidden">
+                    <div class="modal-content">
+                        <h3 id="paymentProductName">Product</h3>
+                        <p>How was this paid?</p>
+                        <button class="btn btn-primary" onclick="recordSale('Cash')">💵 Cash</button>
+                        <button class="btn btn-primary" onclick="recordSale('Card')">💳 Card</button>
+                        <button class="btn btn-secondary" onclick="closePaymentModal()">Cancel</button>
+                    </div>
+                </div>
+                <div class="section-box">
+                    <h3>Quick Actions</h3>
+                    <button class="btn btn-secondary" onclick="adjustLastSaleQty(1)">+1</button>
+                    <button class="btn btn-secondary" onclick="adjustLastSaleQty(5)">+5</button>
+                    <button class="btn btn-danger" onclick="undoLastSale()">↩️ Undo</button>
+                </div>
+                <div class="section-box">
+                    <h3>Running Totals</h3>
+                    <p><strong>Total Revenue:</strong> $<span id="quickTotalRevenue">0.00</span></p>
+                    <p><strong>Cash Sales:</strong> $<span id="quickCashTotal">0.00</span></p>
+                    <p><strong>Card Sales:</strong> $<span id="quickCardTotal">0.00</span></p>
+                </div>
+            </div>
+
+            <!-- Detailed Entry Mode -->
+            <div id="detailedSalesMode" class="sales-mode">
+                <div class="section-box">
+                    <h3>Record a Sale</h3>
+                    <label>Product</label>
+                    <select id="saleProductSelect">
+                        <option value="">-- Select a Product --</option>
+                    </select>
+                    <label>Quantity</label>
+                    <input type="number" id="saleQuantity" min="1" value="1">
+                    <label>Price per Unit (AUD)</label>
+                    <input type="number" id="saleUnitPrice" min="0" step="0.01" placeholder="e.g., 15.00">
+                    <label>Payment Method</label>
+                    <select id="salePaymentMethod">
+                        <option value="">-- Select --</option>
+                        <option value="Cash">💵 Cash</option>
+                        <option value="Card">💳 Card</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="addSaleDetailed()">Add Sale</button>
+                </div>
+                <div class="section-box">
+                    <h3>Sales History</h3>
+                    <div id="salesList"></div>
+                </div>
             </div>
         </section>
 
@@ -101,9 +174,33 @@
         <section id="dashboard" class="tab-content">
             <h2>Dashboard</h2>
             <div class="section-box">
-                <h3>Financials</h3>
-                <p><strong>Total Revenue:</strong> $<span id="revenue">0.00</span></p>
-                <p><strong>Total Sales:</strong> <span id="saleCount">0</span></p>
+                <h3>Key Metrics</h3>
+                <p><strong>Total Revenue:</strong> $<span id="dashRevenue">0.00</span></p>
+                <p><strong>Total Shared Costs:</strong> $<span id="dashCosts">275.00</span></p>
+                <p><strong>Profit After Costs:</strong> $<span id="dashProfit">0.00</span></p>
+                <p><strong>Cash Sales:</strong> $<span id="dashCashTotal">0.00</span></p>
+                <p><strong>Card Sales:</strong> $<span id="dashCardTotal">0.00</span></p>
+                <p><strong>Total Sales Count:</strong> <span id="dashSaleCount">0</span></p>
+            </div>
+        </section>
+
+        <!-- Reports Tab -->
+        <section id="reports" class="tab-content">
+            <h2>Reports</h2>
+            <div class="section-box">
+                <h3>Event Details</h3>
+                <label>Event Name</label>
+                <input type="text" id="eventName" placeholder="e.g., Glenferrie Festival" value="Glenferrie Festival">
+                <label>Event Date</label>
+                <input type="date" id="eventDate">
+                <label>Notes</label>
+                <textarea id="eventNotes" placeholder="Add any notes..." rows="3"></textarea>
+                <button class="btn btn-primary" onclick="saveReportMeta()">Save Report</button>
+            </div>
+            <div class="section-box">
+                <h3>Summary Report</h3>
+                <div id="reportContent"></div>
+                <button class="btn btn-primary" onclick="printReport()">🖨️ Print Report</button>
             </div>
         </section>
     </div>
@@ -142,7 +239,19 @@
         let appData = {
             teamMembers: [],
             products: [],
-            sales: []
+            sales: [],
+            costs: {
+                stallFee: 175,
+                insurance: 50,
+                squareReader: 50
+            },
+            reportMeta: {
+                eventName: "Glenferrie Festival",
+                eventDate: new Date().toISOString().split('T')[0],
+                notes: ""
+            },
+            currentSalesMode: 'quick',
+            pendingProductId: null
         };
 
         // Local storage helpers
@@ -256,24 +365,98 @@
 
         function updateProductSelect() {
             const select = document.getElementById('saleProduct');
-            if (!select) return;
-            const current = select.value;
-            select.innerHTML = '<option>Select product...</option>' + 
+            const detailSelect = document.getElementById('saleProductSelect');
+            if (!select && !detailSelect) return;
+            const current = select?.value || detailSelect?.value;
+            const html = '<option>Select product...</option>' + 
                 appData.products.map(p => `<option value="${p.id}">${p.name} - $${p.price.toFixed(2)}</option>`).join('');
-            select.value = current;
+            if (select) select.innerHTML = html;
+            if (detailSelect) detailSelect.innerHTML = '<option value="">-- Select a Product --</option>' + 
+                appData.products.map(p => `<option value="${p.id}">${p.name} - $${p.price.toFixed(2)}</option>`).join('');
         }
 
-        function recordSale() {
-            const productId = document.getElementById('saleProduct').value;
-            const qty = parseInt(document.getElementById('saleQty').value);
-            if (productId && qty > 0) {
-                const product = appData.products.find(p => p.id == productId);
-                if (product) {
-                    appData.sales.push({ productId, qty, price: product.price, amount: qty * product.price });
-                    document.getElementById('saleQty').value = '1';
-                    renderSales(); updateDashboard();
-                    saveLocal(); saveToFirebase();
-                }
+        function switchSalesMode(mode) {
+            appData.currentSalesMode = mode;
+            document.querySelectorAll('.sales-mode').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.mode-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(mode === 'quick' ? 'quickSaleMode' : 'detailedSalesMode').classList.add('active');
+            document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
+            renderQuickSaleButtons();
+        }
+
+        function renderQuickSaleButtons() {
+            const grid = document.getElementById('quickSaleButtons');
+            if (!grid) return;
+            grid.innerHTML = appData.products.map(p => 
+                `<button class="product-btn" onclick="openPaymentModal(${p.id}, '${p.name}', ${p.price})">${p.name}<br>$${p.price.toFixed(2)}</button>`
+            ).join('');
+        }
+
+        function openPaymentModal(productId, productName, price) {
+            appData.pendingProductId = productId;
+            document.getElementById('paymentProductName').textContent = `${productName} - $${price.toFixed(2)}`;
+            document.getElementById('paymentModal').classList.remove('hidden');
+        }
+
+        function closePaymentModal() {
+            document.getElementById('paymentModal').classList.add('hidden');
+            appData.pendingProductId = null;
+        }
+
+        function recordSale(paymentMethod) {
+            if (!appData.pendingProductId) return;
+            const product = appData.products.find(p => p.id == appData.pendingProductId);
+            if (product) {
+                appData.sales.push({ 
+                    productId: appData.pendingProductId, 
+                    qty: 1, 
+                    price: product.price, 
+                    amount: product.price,
+                    paymentMethod: paymentMethod
+                });
+                closePaymentModal();
+                renderSales(); updateDashboard();
+                saveLocal(); saveToFirebase();
+            }
+        }
+
+        function addSaleDetailed() {
+            const productId = document.getElementById('saleProductSelect').value;
+            const qty = parseInt(document.getElementById('saleQuantity').value);
+            const unitPrice = parseFloat(document.getElementById('saleUnitPrice').value);
+            const paymentMethod = document.getElementById('salePaymentMethod').value;
+            if (productId && qty > 0 && unitPrice > 0 && paymentMethod) {
+                appData.sales.push({ 
+                    productId: parseInt(productId), 
+                    qty, 
+                    price: unitPrice, 
+                    amount: qty * unitPrice,
+                    paymentMethod: paymentMethod
+                });
+                document.getElementById('saleQuantity').value = '1';
+                document.getElementById('saleUnitPrice').value = '';
+                document.getElementById('saleProductSelect').value = '';
+                document.getElementById('salePaymentMethod').value = '';
+                renderSales(); updateDashboard();
+                saveLocal(); saveToFirebase();
+            }
+        }
+
+        function adjustLastSaleQty(delta) {
+            if (appData.sales.length > 0) {
+                const last = appData.sales[appData.sales.length - 1];
+                last.qty += delta;
+                last.amount = last.qty * last.price;
+                renderSales(); updateDashboard();
+                saveLocal(); saveToFirebase();
+            }
+        }
+
+        function undoLastSale() {
+            if (appData.sales.length > 0) {
+                appData.sales.pop();
+                renderSales(); updateDashboard();
+                saveLocal(); saveToFirebase();
             }
         }
 
@@ -294,10 +477,79 @@
 
         function updateDashboard() {
             const revenue = appData.sales.reduce((sum, s) => sum + s.amount, 0);
+            const costs = appData.costs.stallFee + appData.costs.insurance + appData.costs.squareReader;
+            const profit = revenue - costs;
+            const cashTotal = appData.sales.filter(s => s.paymentMethod === 'Cash').reduce((sum, s) => sum + s.amount, 0);
+            const cardTotal = appData.sales.filter(s => s.paymentMethod === 'Card').reduce((sum, s) => sum + s.amount, 0);
+            
             const rEl = document.getElementById('revenue');
             const cEl = document.getElementById('saleCount');
+            const dashRev = document.getElementById('dashRevenue');
+            const dashCosts = document.getElementById('dashCosts');
+            const dashProfit = document.getElementById('dashProfit');
+            const dashCash = document.getElementById('dashCashTotal');
+            const dashCard = document.getElementById('dashCardTotal');
+            const dashCount = document.getElementById('dashSaleCount');
+            const quickRev = document.getElementById('quickTotalRevenue');
+            const quickCash = document.getElementById('quickCashTotal');
+            const quickCard = document.getElementById('quickCardTotal');
+            
             if (rEl) rEl.textContent = revenue.toFixed(2);
             if (cEl) cEl.textContent = appData.sales.length;
+            if (dashRev) dashRev.textContent = revenue.toFixed(2);
+            if (dashCosts) dashCosts.textContent = costs.toFixed(2);
+            if (dashProfit) dashProfit.textContent = profit.toFixed(2);
+            if (dashCash) dashCash.textContent = cashTotal.toFixed(2);
+            if (dashCard) dashCard.textContent = cardTotal.toFixed(2);
+            if (dashCount) dashCount.textContent = appData.sales.length;
+            if (quickRev) quickRev.textContent = revenue.toFixed(2);
+            if (quickCash) quickCash.textContent = cashTotal.toFixed(2);
+            if (quickCard) quickCard.textContent = cardTotal.toFixed(2);
+        }
+
+        function updateCosts() {
+            appData.costs.stallFee = parseFloat(document.getElementById('stallFee').value) || 0;
+            appData.costs.insurance = parseFloat(document.getElementById('insurance').value) || 0;
+            appData.costs.squareReader = parseFloat(document.getElementById('squareReader').value) || 0;
+            const total = appData.costs.stallFee + appData.costs.insurance + appData.costs.squareReader;
+            const totalEl = document.getElementById('totalCosts');
+            if (totalEl) totalEl.textContent = total.toFixed(2);
+            updateDashboard();
+            saveLocal(); saveToFirebase();
+        }
+
+        function saveReportMeta() {
+            appData.reportMeta.eventName = document.getElementById('eventName').value;
+            appData.reportMeta.eventDate = document.getElementById('eventDate').value;
+            appData.reportMeta.notes = document.getElementById('eventNotes').value;
+            updateReportDisplay();
+            saveLocal(); saveToFirebase();
+        }
+
+        function updateReportDisplay() {
+            const revenue = appData.sales.reduce((sum, s) => sum + s.amount, 0);
+            const costs = appData.costs.stallFee + appData.costs.insurance + appData.costs.squareReader;
+            const profit = revenue - costs;
+            const cashTotal = appData.sales.filter(s => s.paymentMethod === 'Cash').reduce((sum, s) => sum + s.amount, 0);
+            const cardTotal = appData.sales.filter(s => s.paymentMethod === 'Card').reduce((sum, s) => sum + s.amount, 0);
+            
+            const html = `
+                <p><strong>Event:</strong> ${appData.reportMeta.eventName}</p>
+                <p><strong>Date:</strong> ${appData.reportMeta.eventDate}</p>
+                <p><strong>Total Revenue:</strong> $${revenue.toFixed(2)}</p>
+                <p><strong>Cash Sales:</strong> $${cashTotal.toFixed(2)}</p>
+                <p><strong>Card Sales:</strong> $${cardTotal.toFixed(2)}</p>
+                <p><strong>Total Costs:</strong> $${costs.toFixed(2)}</p>
+                <p><strong>Net Profit:</strong> $${profit.toFixed(2)}</p>
+                <p><strong>Total Sales:</strong> ${appData.sales.length}</p>
+                <p><strong>Notes:</strong> ${appData.reportMeta.notes || 'None'}</p>
+            `;
+            const reportEl = document.getElementById('reportContent');
+            if (reportEl) reportEl.innerHTML = html;
+        }
+
+        function printReport() {
+            window.print();
         }
 
         function loadDemoData() {
@@ -308,15 +560,32 @@
                 { id: 3, name: 'Stand', price: 12 }
             ];
             appData.sales = [
-                { productId: 1, qty: 2, price: 15, amount: 30 },
-                { productId: 2, qty: 3, price: 8, amount: 24 }
+                { productId: 1, qty: 2, price: 15, amount: 30, paymentMethod: 'Cash' },
+                { productId: 2, qty: 3, price: 8, amount: 24, paymentMethod: 'Card' }
             ];
+            appData.costs = { stallFee: 175, insurance: 50, squareReader: 50 };
+            appData.reportMeta = {
+                eventName: "Glenferrie Festival",
+                eventDate: new Date().toISOString().split('T')[0],
+                notes: "Demo data loaded"
+            };
             renderAll();
             saveLocal(); saveToFirebase();
         }
 
         function renderAll() {
             renderTeamList(); renderProducts(); updateProductSelect(); renderSales(); updateDashboard();
+            renderQuickSaleButtons();
+            // Initialize cost inputs
+            document.getElementById('stallFee').value = appData.costs.stallFee;
+            document.getElementById('insurance').value = appData.costs.insurance;
+            document.getElementById('squareReader').value = appData.costs.squareReader;
+            updateCosts();
+            // Initialize report section
+            document.getElementById('eventName').value = appData.reportMeta.eventName;
+            document.getElementById('eventDate').value = appData.reportMeta.eventDate;
+            document.getElementById('eventNotes').value = appData.reportMeta.notes;
+            updateReportDisplay();
         }
 
         function resetData() {
