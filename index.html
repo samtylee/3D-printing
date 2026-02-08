@@ -344,7 +344,7 @@
                 appData.products.push({ id, name, price });
                 document.getElementById('productName').value = '';
                 document.getElementById('productPrice').value = '';
-                renderProducts(); updateProductSelect();
+                renderProducts(); updateProductSelect(); renderQuickSaleButtons();
                 saveLocal(); saveToFirebase();
             }
         }
@@ -359,7 +359,7 @@
 
         function removeProduct(id) {
             appData.products = appData.products.filter(p => p.id !== id);
-            renderProducts(); updateProductSelect();
+            renderProducts(); updateProductSelect(); renderQuickSaleButtons();
             saveLocal(); saveToFirebase();
         }
 
