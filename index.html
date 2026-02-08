@@ -410,8 +410,24 @@
         function loadLocal() {
             try {
                 const j = localStorage.getItem('appData');
-                if (j) appData = JSON.parse(j);
-            } catch(e){}
+                if (j) {
+                    const loaded = JSON.parse(j);
+                    appData = loaded;
+                }
+            } catch(e){
+                console.error('Error loading from localStorage:', e);
+            }
+            // Ensure all required properties exist
+            if (!appData.productsBrought) appData.productsBrought = [];
+            if (!appData.finalRevenue) appData.finalRevenue = { cash: 0, card: 0 };
+            if (!appData.stockTake) appData.stockTake = [];
+            if (!appData.teamName) appData.teamName = 'Team 1';
+            if (!appData.teamMembers) appData.teamMembers = [];
+            if (!appData.products) appData.products = [];
+            if (!appData.sales) appData.sales = [];
+            if (!appData.costs) appData.costs = { stallFee: 175, insurance: 50, squareReader: 50 };
+            if (!appData.reportMeta) appData.reportMeta = { eventName: 'Glenferrie Festival', eventDate: new Date().toISOString().split('T')[0], notes: '' };
+            console.log('✅ appData loaded and normalized:', appData);
         }
 
         // No Firebase helpers needed - localStorage only
