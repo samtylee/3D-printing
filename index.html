@@ -918,161 +918,172 @@
         }
 
         function exportDashboardAsPDF() {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('p', 'mm', 'a4');
-            let yPos = 12;
-            const pageHeight = doc.internal.pageSize.getHeight();
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const margin = 12;
-            const lineHeight = 6;
+            try {
+                console.log('🔄 Starting PDF export...');
+                const { jsPDF } = window.jspdf;
+                console.log('✅ jsPDF loaded:', !!jsPDF);
+                
+                const doc = new jsPDF('p', 'mm', 'a4');
+                let yPos = 12;
+                const pageHeight = doc.internal.pageSize.getHeight();
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const margin = 12;
+                const lineHeight = 6;
 
-            // Calculate metrics
-            const revenue = appData.finalRevenue.cash + appData.finalRevenue.card;
-            const costs = appData.costs.stallFee + appData.costs.insurance + appData.costs.squareReader;
-            const profit = revenue - costs;
-            const breakPct = costs > 0 ? Math.max(0, Math.min(100, (revenue / costs) * 100)) : (revenue > 0 ? 100 : 0);
-            const perKid = appData.teamMembers && appData.teamMembers.length > 0 ? (profit / appData.teamMembers.length) : 0;
-            const inventoryMetrics = computeInventoryMetrics();
-            const totalUnitsSold = inventoryMetrics.reduce((sum, m) => sum + m.quantitySold, 0);
-            const today = new Date().toISOString().split('T')[0];
+                // Calculate metrics
+                console.log('📊 Calculating metrics...');
+                const revenue = appData.finalRevenue.cash + appData.finalRevenue.card;
+                const costs = appData.costs.stallFee + appData.costs.insurance + appData.costs.squareReader;
+                const profit = revenue - costs;
+                const breakPct = costs > 0 ? Math.max(0, Math.min(100, (revenue / costs) * 100)) : (revenue > 0 ? 100 : 0);
+                const perKid = appData.teamMembers && appData.teamMembers.length > 0 ? (profit / appData.teamMembers.length) : 0;
+                const inventoryMetrics = computeInventoryMetrics();
+                const totalUnitsSold = inventoryMetrics.reduce((sum, m) => sum + m.quantitySold, 0);
+                const today = new Date().toISOString().split('T')[0];
 
-            // Header with background color
-            doc.setDrawColor(102, 126, 234);
-            doc.setFillColor(102, 126, 234);
-            doc.rect(0, 0, pageWidth, 22, 'F');
-            
-            // Title
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(20);
-            doc.setFont(undefined, 'bold');
-            doc.text('Market Stall Report', margin, 10);
-            doc.setFontSize(11);
-            doc.setFont(undefined, 'normal');
-            doc.text(`${appData.teamName}`, margin, 17);
-            
-            yPos = 28;
-            doc.setTextColor(0, 0, 0);
-            
-            // Team info
-            doc.setFontSize(10);
-            doc.setFont(undefined, 'bold');
-            doc.text('TEAM INFORMATION', margin, yPos);
-            yPos += 5;
-            doc.setFont(undefined, 'normal');
-            doc.setFontSize(9);
-            const teamMembersList = appData.teamMembers && appData.teamMembers.length > 0 ? appData.teamMembers.join(', ') : 'None';
-            doc.text(`Members: ${teamMembersList}`, margin + 2, yPos);
-            yPos += lineHeight;
-            doc.text(`Date: ${today}`, margin + 2, yPos);
-            yPos += 10;
-            
-            // Key Metrics
-            doc.setFontSize(10);
-            doc.setFont(undefined, 'bold');
-            doc.text('KEY METRICS', margin, yPos);
-            yPos += 5;
-            
-            const metrics = [
-                { label: 'Total Revenue', value: `$${revenue.toFixed(2)}`, color: [102, 126, 234] },
-                { label: 'Total Costs', value: `$${costs.toFixed(2)}`, color: [255, 152, 0] },
-                { label: 'Net Profit', value: `$${profit.toFixed(2)}`, color: profit >= 0 ? [76, 175, 80] : [245, 87, 108] },
-                { label: 'Units Sold', value: `${totalUnitsSold}`, color: [102, 126, 234] },
-                { label: 'Break-even %', value: `${breakPct.toFixed(0)}%`, color: [102, 126, 234] },
-                { label: 'Per-Kid Payout', value: `$${perKid.toFixed(2)}`, color: perKid >= 0 ? [76, 175, 80] : [245, 87, 108] }
-            ];
-            
-            doc.setFont(undefined, 'normal');
-            doc.setFontSize(9);
-            metrics.forEach(m => {
-                doc.setTextColor(m.color[0], m.color[1], m.color[2]);
+                // Header with background color
+                doc.setDrawColor(102, 126, 234);
+                doc.setFillColor(102, 126, 234);
+                doc.rect(0, 0, pageWidth, 22, 'F');
+                
+                // Title
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(20);
                 doc.setFont(undefined, 'bold');
-                doc.text(m.label, margin + 2, yPos);
-                doc.setTextColor(0, 0, 0);
+                doc.text('Market Stall Report', margin, 10);
+                doc.setFontSize(11);
                 doc.setFont(undefined, 'normal');
-                doc.text(m.value, pageWidth - margin - 2, yPos, { align: 'right' });
-                yPos += lineHeight;
-            });
-            
-            yPos += 5;
-            
-            // Break-even Progress Bar
-            doc.setFont(undefined, 'bold');
-            doc.setFontSize(10);
-            doc.text('BREAK-EVEN PROGRESS', margin, yPos);
-            yPos += 5;
-            
-            // Draw bar background
-            doc.setDrawColor(200, 200, 200);
-            doc.setFillColor(240, 240, 240);
-            doc.rect(margin, yPos, pageWidth - margin * 2, 8, 'FD');
-            
-            // Draw progress fill
-            const fillWidth = ((pageWidth - margin * 2) * breakPct) / 100;
-            doc.setFillColor(76, 175, 80);
-            doc.rect(margin, yPos, fillWidth, 8, 'F');
-            
-            // Progress label
-            doc.setTextColor(0, 0, 0);
-            doc.setFontSize(8);
-            doc.setFont(undefined, 'bold');
-            const progressLabel = breakPct >= 100 ? `✅ ${breakPct.toFixed(0)}%` : `${breakPct.toFixed(0)}%`;
-            doc.text(progressLabel, margin + 2, yPos + 5.5);
-            
-            yPos += 12;
-            
-            // Product Leaderboard
-            if (inventoryMetrics.length > 0 && yPos < pageHeight - 45) {
+                doc.text(`${appData.teamName}`, margin, 17);
+                
+                yPos = 28;
+                doc.setTextColor(0, 0, 0);
+                
+                // Team info
                 doc.setFontSize(10);
                 doc.setFont(undefined, 'bold');
-                doc.text('PRODUCT LEADERBOARD', margin, yPos);
-                yPos += 6;
+                doc.text('TEAM INFORMATION', margin, yPos);
+                yPos += 5;
+                doc.setFont(undefined, 'normal');
+                doc.setFontSize(9);
+                const teamMembersList = appData.teamMembers && appData.teamMembers.length > 0 ? appData.teamMembers.join(', ') : 'None';
+                doc.text(`Members: ${teamMembersList}`, margin + 2, yPos);
+                yPos += lineHeight;
+                doc.text(`Date: ${today}`, margin + 2, yPos);
+                yPos += 10;
                 
-                // Table header
-                doc.setFillColor(220, 220, 220);
-                doc.rect(margin, yPos - 4, pageWidth - margin * 2, 5, 'F');
+                // Key Metrics
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'bold');
+                doc.text('KEY METRICS', margin, yPos);
+                yPos += 5;
+                
+                const metrics = [
+                    { label: 'Total Revenue', value: `$${revenue.toFixed(2)}`, color: [102, 126, 234] },
+                    { label: 'Total Costs', value: `$${costs.toFixed(2)}`, color: [255, 152, 0] },
+                    { label: 'Net Profit', value: `$${profit.toFixed(2)}`, color: profit >= 0 ? [76, 175, 80] : [245, 87, 108] },
+                    { label: 'Units Sold', value: `${totalUnitsSold}`, color: [102, 126, 234] },
+                    { label: 'Break-even %', value: `${breakPct.toFixed(0)}%`, color: [102, 126, 234] },
+                    { label: 'Per-Kid Payout', value: `$${perKid.toFixed(2)}`, color: perKid >= 0 ? [76, 175, 80] : [245, 87, 108] }
+                ];
+                
+                doc.setFont(undefined, 'normal');
+                doc.setFontSize(9);
+                metrics.forEach(m => {
+                    doc.setTextColor(m.color[0], m.color[1], m.color[2]);
+                    doc.setFont(undefined, 'bold');
+                    doc.text(m.label, margin + 2, yPos);
+                    doc.setTextColor(0, 0, 0);
+                    doc.setFont(undefined, 'normal');
+                    doc.text(m.value, pageWidth - margin - 2, yPos, { align: 'right' });
+                    yPos += lineHeight;
+                });
+                
+                yPos += 5;
+                
+                // Break-even Progress Bar
+                doc.setFont(undefined, 'bold');
+                doc.setFontSize(10);
+                doc.text('BREAK-EVEN PROGRESS', margin, yPos);
+                yPos += 5;
+                
+                // Draw bar background
+                doc.setDrawColor(200, 200, 200);
+                doc.setFillColor(240, 240, 240);
+                doc.rect(margin, yPos, pageWidth - margin * 2, 8, 'FD');
+                
+                // Draw progress fill
+                const fillWidth = ((pageWidth - margin * 2) * breakPct) / 100;
+                doc.setFillColor(76, 175, 80);
+                doc.rect(margin, yPos, fillWidth, 8, 'F');
+                
+                // Progress label
+                doc.setTextColor(0, 0, 0);
                 doc.setFontSize(8);
                 doc.setFont(undefined, 'bold');
-                doc.text('Rank', margin + 1, yPos);
-                doc.text('Product', margin + 8, yPos);
-                doc.text('Sold', margin + 55, yPos);
-                doc.text('S-Through %', margin + 75, yPos);
-                doc.text('Revenue', pageWidth - margin - 15, yPos, { align: 'right' });
-                yPos += 6;
+                const progressLabel = breakPct >= 100 ? `✅ ${breakPct.toFixed(0)}%` : `${breakPct.toFixed(0)}%`;
+                doc.text(progressLabel, margin + 2, yPos + 5.5);
                 
-                // Table rows
-                const sorted = [...inventoryMetrics].sort((a, b) => b.quantitySold - a.quantitySold);
-                doc.setFontSize(8);
-                doc.setFont(undefined, 'normal');
+                yPos += 12;
                 
-                sorted.forEach((m, idx) => {
-                    if (yPos > pageHeight - 12) {
-                        doc.addPage();
-                        yPos = margin;
-                    }
+                // Product Leaderboard
+                if (inventoryMetrics.length > 0 && yPos < pageHeight - 45) {
+                    doc.setFontSize(10);
+                    doc.setFont(undefined, 'bold');
+                    doc.text('PRODUCT LEADERBOARD', margin, yPos);
+                    yPos += 6;
                     
-                    // Alternate row color
-                    if (idx % 2 === 1) {
-                        doc.setFillColor(248, 248, 248);
-                        doc.rect(margin, yPos - 4, pageWidth - margin * 2, 5, 'F');
-                    }
+                    // Table header
+                    doc.setFillColor(220, 220, 220);
+                    doc.rect(margin, yPos - 4, pageWidth - margin * 2, 5, 'F');
+                    doc.setFontSize(8);
+                    doc.setFont(undefined, 'bold');
+                    doc.text('Rank', margin + 1, yPos);
+                    doc.text('Product', margin + 8, yPos);
+                    doc.text('Sold', margin + 55, yPos);
+                    doc.text('S-Through %', margin + 75, yPos);
+                    doc.text('Revenue', pageWidth - margin - 15, yPos, { align: 'right' });
+                    yPos += 6;
                     
-                    const rank = idx === 0 ? '⭐' : `${idx + 1}`;
-                    const sold = `${m.quantitySold}/${m.quantityBrought}`;
-                    const sellThrough = `${m.sellThrough}%`;
-                    const revStr = `$${m.revenue.toFixed(2)}`;
+                    // Table rows
+                    const sorted = [...inventoryMetrics].sort((a, b) => b.quantitySold - a.quantitySold);
+                    doc.setFontSize(8);
+                    doc.setFont(undefined, 'normal');
                     
-                    doc.text(rank, margin + 1, yPos);
-                    doc.text(m.product.name.substring(0, 15), margin + 8, yPos);
-                    doc.text(sold, margin + 55, yPos);
-                    doc.text(sellThrough, margin + 75, yPos);
-                    doc.text(revStr, pageWidth - margin - 15, yPos, { align: 'right' });
-                    yPos += 5;
-                });
+                    sorted.forEach((m, idx) => {
+                        if (yPos > pageHeight - 12) {
+                            doc.addPage();
+                            yPos = margin;
+                        }
+                        
+                        // Alternate row color
+                        if (idx % 2 === 1) {
+                            doc.setFillColor(248, 248, 248);
+                            doc.rect(margin, yPos - 4, pageWidth - margin * 2, 5, 'F');
+                        }
+                        
+                        const rank = idx === 0 ? '⭐' : `${idx + 1}`;
+                        const sold = `${m.quantitySold}/${m.quantityBrought}`;
+                        const sellThrough = `${m.sellThrough}%`;
+                        const revStr = `$${m.revenue.toFixed(2)}`;
+                        
+                        doc.text(rank, margin + 1, yPos);
+                        doc.text(m.product.name.substring(0, 15), margin + 8, yPos);
+                        doc.text(sold, margin + 55, yPos);
+                        doc.text(sellThrough, margin + 75, yPos);
+                        doc.text(revStr, pageWidth - margin - 15, yPos, { align: 'right' });
+                        yPos += 5;
+                    });
+                }
+                
+                // Save PDF
+                const filename = `Market_Stall_Report_${appData.teamName.replace(/\s+/g, '_')}_${today}.pdf`;
+                console.log('💾 Saving PDF as:', filename);
+                doc.save(filename);
+                console.log('✅ PDF export complete!');
+            } catch (error) {
+                console.error('❌ PDF export error:', error);
+                alert('Error exporting PDF: ' + error.message);
             }
-            
-            // Save PDF
-            const filename = `Market_Stall_Report_${appData.teamName.replace(/\s+/g, '_')}_${today}.pdf`;
-            doc.save(filename);
         }
             doc.setFont(undefined, 'bold');
             doc.text('KEY METRICS', margin, yPos);
