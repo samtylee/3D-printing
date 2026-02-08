@@ -409,16 +409,14 @@
         }
         function loadLocal() {
             try {
+                // FORCE CLEAR OLD DATA for post-event migration
+                // Remove this after testing if you want to preserve user data
+                localStorage.removeItem('appData');
+                
                 const j = localStorage.getItem('appData');
                 if (j) {
                     const loaded = JSON.parse(j);
-                    // If old format detected (has sales but no productsBrought), clear and use fresh data
-                    if (loaded.sales && loaded.sales.length > 0 && (!loaded.productsBrought || loaded.productsBrought.length === 0)) {
-                        console.log('Old data format detected, clearing for post-event migration');
-                        localStorage.removeItem('appData');
-                    } else {
-                        appData = loaded;
-                    }
+                    appData = loaded;
                 }
             } catch(e){
                 console.error('Error loading from localStorage:', e);
