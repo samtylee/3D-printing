@@ -1154,6 +1154,12 @@
                 
                 console.log('  renderTeamList...');
                 renderTeamList();
+                
+                // Set team name input
+                console.log('  Setting team name input...');
+                const teamNameEl = document.getElementById('teamName');
+                if (teamNameEl) teamNameEl.value = appData.teamName || 'Team 1';
+                
                 console.log('  renderProducts...');
                 renderProducts();
                 console.log('  updateProductSelect...');
