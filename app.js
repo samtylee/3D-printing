@@ -88,7 +88,7 @@ function updateSyncStatus(online) {
     const indicator = document.getElementById('syncStatus');
     const text = document.getElementById('syncText');
     if (indicator && text) {
-        if (online) {
+        if (online === true) {
             indicator.classList.remove('offline');
             indicator.style.background = '#4caf50';
             text.textContent = 'Live Sync ✓';
@@ -196,6 +196,15 @@ function renderCostInputs() {
     document.getElementById('insurance').value = appState.costs.insurance;
     document.getElementById('squareReader').value = appState.costs.squareReader;
     renderTotalCosts();
+}
+
+// Alias functions for HTML onclick handlers
+function updateCosts() {
+    saveCosts();
+}
+
+function confirmReset() {
+    resetAllData();
 }
 
 // ===== PRODUCTS MANAGEMENT =====
@@ -723,6 +732,8 @@ function switchTab(tabName) {
 }
 
 function setupUIListeners() {
+    console.log('Setting up UI listeners...');
+    
     // Team section
     const addTeamBtn = document.getElementById('addTeamBtn');
     if (addTeamBtn) {
@@ -781,9 +792,13 @@ function setupUIListeners() {
         });
     }
 
-    // Tab navigation
-    document.querySelectorAll('.tab-button').forEach(btn => {
+    // Tab navigation - THIS IS KEY
+    console.log('Setting up tab buttons...');
+    const tabButtons = document.querySelectorAll('.tab-button');
+    console.log('Found ' + tabButtons.length + ' tab buttons');
+    tabButtons.forEach(btn => {
         btn.addEventListener('click', (e) => {
+            console.log('Tab clicked:', e.target.getAttribute('data-tab'));
             const tabName = e.target.getAttribute('data-tab');
             switchTab(tabName);
         });
@@ -810,6 +825,8 @@ function setupUIListeners() {
     if (resetDataBtn) {
         resetDataBtn.addEventListener('click', resetAllData);
     }
+    
+    console.log('UI listeners setup complete');
 }
 
 function attachProductButtonListeners() {
@@ -836,13 +853,16 @@ function initializeApp() {
     setupFirebaseListeners();
     setupUIListeners();
     checkOnlineStatus();
+    updateSyncStatus(navigator.onLine && firebaseReady);
     
     window.addEventListener('online', () => {
-        updateSyncStatus();
+        updateSyncStatus(navigator.onLine && firebaseReady);
         saveToFirebase();
     });
     
-    window.addEventListener('offline', updateSyncStatus);
+    window.addEventListener('offline', () => {
+        updateSyncStatus(false);
+    });
     
     renderAll();
 }
