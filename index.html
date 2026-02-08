@@ -409,10 +409,6 @@
         }
         function loadLocal() {
             try {
-                // FORCE CLEAR OLD DATA for post-event migration
-                // Remove this after testing if you want to preserve user data
-                localStorage.removeItem('appData');
-                
                 const j = localStorage.getItem('appData');
                 if (j) {
                     const loaded = JSON.parse(j);
@@ -420,6 +416,7 @@
                 }
             } catch(e){
                 console.error('Error loading from localStorage:', e);
+                localStorage.removeItem('appData'); // Clear corrupted data
             }
             // Ensure all required properties exist
             if (!appData.productsBrought) appData.productsBrought = [];
@@ -758,8 +755,17 @@
             // Compute inventory metrics (quantity sold, sell-through, etc)
             const inventoryMetrics = computeInventoryMetrics();
             const totalUnitsSold = inventoryMetrics.reduce((sum, m) => sum + m.quantitySold, 0);
-            if (cEl) cEl.textContent = totalUnitsSold;
-            if (dashCount) dashCount.textContent = totalUnitsSold;
+            console.log('Total Units Sold calculated:', totalUnitsSold, 'from metrics:', inventoryMetrics);
+            if (cEl) {
+                cEl.textContent = totalUnitsSold;
+                console.log('Updated saleCount element:', totalUnitsSold);
+            }
+            if (dashCount) {
+                dashCount.textContent = totalUnitsSold;
+                console.log('Updated dashSaleCount element:', totalUnitsSold);
+            } else {
+                console.warn('dashSaleCount element not found!');
+            }
 
             // Per-kid payout (can be negative if loss)
             const perKid = appData.teamMembers && appData.teamMembers.length > 0 ? (profit / appData.teamMembers.length) : 0;
