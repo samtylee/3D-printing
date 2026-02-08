@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Glenferrie Festival Market Stall Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🎪 Glenferrie Festival Market Stall</h1>
+            <p class="subtitle">Team Business Tracker</p>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="tabs">
+            <button class="tab-button active" data-tab="setup">Setup</button>
+            <button class="tab-button" data-tab="products">Products</button>
+            <button class="tab-button" data-tab="sales">Sales</button>
+            <button class="tab-button" data-tab="dashboard">Dashboard</button>
+            <button class="tab-button" data-tab="reports">Reports</button>
+        </nav>
+
+        <!-- ==================== SETUP SECTION ==================== -->
+        <section id="setup" class="tab-content active">
+            <h2>Setup</h2>
+
+            <!-- Team Members -->
+            <div class="section-box">
+                <h3>Team Members</h3>
+                <div id="teamList" class="team-list"></div>
+                <div class="input-group">
+                    <input type="text" id="newTeamMember" placeholder="Enter a team member name" maxlength="30">
+                    <button class="btn btn-primary" onclick="addTeamMember()">Add Member</button>
+                </div>
+            </div>
+
+            <!-- Shared Costs -->
+            <div class="section-box">
+                <h3>Shared Costs</h3>
+                <div class="cost-inputs">
+                    <div class="input-group">
+                        <label>Stall Fee (AUD)</label>
+                        <input type="number" id="stallFee" min="0" step="0.01" value="175">
+                    </div>
+                    <div class="input-group">
+                        <label>Public Liability Insurance (AUD)</label>
+                        <input type="number" id="insurance" min="0" step="0.01" value="50">
+                    </div>
+                    <div class="input-group">
+                        <label>Square Reader (AUD)</label>
+                        <input type="number" id="squareReader" min="0" step="0.01" value="50">
+                    </div>
+                </div>
+                <div class="cost-summary">
+                    <strong>Total Shared Costs: $<span id="totalCosts">275.00</span></strong>
+                </div>
+                <button class="btn btn-primary" onclick="updateCosts()">Save Costs</button>
+            </div>
+
+            <!-- Utility Buttons -->
+            <div class="section-box">
+                <h3>Utilities</h3>
+                <button class="btn btn-secondary" onclick="loadDemoData()">📊 Load Demo Data</button>
+                <button class="btn btn-danger" onclick="confirmReset()">🗑️ Reset All Data</button>
+            </div>
+        </section>
+
+        <!-- ==================== PRODUCTS SECTION ==================== -->
+        <section id="products" class="tab-content">
+            <h2>Products</h2>
+
+            <!-- Add Product -->
+            <div class="section-box">
+                <h3>Add New Product</h3>
+                <div class="input-group">
+                    <input type="text" id="productName" placeholder="Product name (e.g., Miniature Dragon)" maxlength="50">
+                </div>
+                <div class="input-group">
+                    <label>Default Price (AUD) - Optional</label>
+                    <input type="number" id="productPrice" min="0" step="0.01" placeholder="e.g., 15.00">
+                </div>
+                <button class="btn btn-primary" onclick="addProduct()">Add Product</button>
+            </div>
+
+            <!-- Product List -->
+            <div class="section-box">
+                <h3>Product List</h3>
+                <div id="productList" class="product-list"></div>
+            </div>
+        </section>
+
+        <!-- ==================== SALES SECTION ==================== -->
+        <section id="sales" class="tab-content">
+            <h2>Sales</h2>
+
+            <!-- Mode Toggle -->
+            <div class="mode-toggle">
+                <button class="mode-btn active" data-mode="quick">⚡ Quick Sale Mode</button>
+                <button class="mode-btn" data-mode="detailed">📋 Detailed Entry</button>
+            </div>
+
+            <!-- Quick Sale Mode -->
+            <div id="quickSaleMode" class="sales-mode active">
+                <div class="section-box">
+                    <h3>Tap a Product to Sell</h3>
+                    <div id="quickSaleButtons" class="quick-sale-grid"></div>
+                </div>
+
+                <!-- Payment Method Modal (hidden by default) -->
+                <div id="paymentModal" class="modal hidden">
+                    <div class="modal-content">
+                        <h3 id="paymentProductName">Product Name</h3>
+                        <p>How was this paid?</p>
+                        <button class="btn btn-primary" onclick="recordSale('Cash')">💵 Cash</button>
+                        <button class="btn btn-primary" onclick="recordSale('Card')">💳 Card</button>
+                        <button class="btn btn-secondary" onclick="closePaymentModal()">Cancel</button>
+                    </div>
+                </div>
+
+                <!-- Quantity Adjustment -->
+                <div class="section-box">
+                    <h3>Quantity Adjustment</h3>
+                    <p>Last sale adjustments:</p>
+                    <div class="button-group">
+                        <button class="btn btn-secondary" onclick="adjustLastSaleQty(1)">+1</button>
+                        <button class="btn btn-secondary" onclick="adjustLastSaleQty(5)">+5</button>
+                        <button class="btn btn-danger" onclick="undoLastSale()">↩️ Undo Last Sale</button>
+                    </div>
+                </div>
+
+                <!-- Running Totals -->
+                <div class="section-box">
+                    <h3>Running Totals</h3>
+                    <div class="totals-grid">
+                        <div class="total-card">
+                            <div class="total-label">Total Revenue</div>
+                            <div class="total-amount">$<span id="quickTotalRevenue">0.00</span></div>
+                        </div>
+                        <div class="total-card">
+                            <div class="total-label">Cash Sales</div>
+                            <div class="total-amount">$<span id="quickCashTotal">0.00</span></div>
+                        </div>
+                        <div class="total-card">
+                            <div class="total-label">Card Sales</div>
+                            <div class="total-amount">$<span id="quickCardTotal">0.00</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Entry Mode -->
+            <div id="detailedSalesMode" class="sales-mode">
+                <div class="section-box">
+                    <h3>Record a Sale</h3>
+                    <div class="input-group">
+                        <label>Product</label>
+                        <select id="saleProductSelect">
+                            <option value="">-- Select a Product --</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Quantity</label>
+                        <input type="number" id="saleQuantity" min="1" value="1">
+                    </div>
+                    <div class="input-group">
+                        <label>Price per Unit (AUD)</label>
+                        <input type="number" id="saleUnitPrice" min="0" step="0.01" placeholder="e.g., 15.00">
+                    </div>
+                    <div class="input-group">
+                        <label>Payment Method</label>
+                        <select id="salePaymentMethod">
+                            <option value="">-- Select --</option>
+                            <option value="Cash">💵 Cash</option>
+                            <option value="Card">💳 Card</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="addSaleDetailed()">Add Sale</button>
+                </div>
+
+                <!-- Sales History -->
+                <div class="section-box">
+                    <h3>Sales History</h3>
+                    <div id="salesList" class="sales-list"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== DASHBOARD SECTION ==================== -->
+        <section id="dashboard" class="tab-content">
+            <h2>Dashboard</h2>
+
+            <!-- Key Metrics -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Total Revenue</div>
+                    <div class="metric-value">$<span id="dashRevenue">0.00</span></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Shared Costs</div>
+                    <div class="metric-value">$<span id="dashCosts">275.00</span></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Net Profit</div>
+                    <div class="metric-value" id="dashProfitDisplay">-$<span id="dashProfit">275.00</span></div>
+                </div>
+            </div>
+
+            <!-- Break-Even Meter -->
+            <div class="section-box">
+                <h3>Break-Even Progress</h3>
+                <div class="break-even-container">
+                    <div class="progress-bar">
+                        <div id="breakEvenFill" class="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <div class="break-even-info">
+                        <p id="breakEvenText">Need $275.00 to break even</p>
+                        <p id="breakEvenPercent">0% of target reached</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profit Pot -->
+            <div class="section-box profit-pot">
+                <h3>💰 Profit Pot</h3>
+                <div class="profit-display">
+                    <div class="profit-card">
+                        <div class="profit-label">Current Net Profit</div>
+                        <div class="profit-amount" id="profitAmount">-$275.00</div>
+                    </div>
+                    <div class="profit-card">
+                        <div class="profit-label">Each Kid Gets</div>
+                        <div class="profit-amount" id="perKidAmount">-$27.50</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Product Sales Chart -->
+            <div class="section-box">
+                <h3>Units Sold by Product</h3>
+                <div id="productChart" class="product-chart"></div>
+            </div>
+
+            <!-- Top Seller Badge -->
+            <div class="section-box">
+                <div id="topSellerBadge" class="top-seller-badge hidden">
+                    <span class="badge-emoji">🏆</span>
+                    <span id="topSellerName">Top Seller: Product Name</span>
+                </div>
+            </div>
+
+            <!-- Confetti Container -->
+            <div id="confetti" class="confetti-container"></div>
+        </section>
+
+        <!-- ==================== REPORTS SECTION ==================== -->
+        <section id="reports" class="tab-content">
+            <h2>Reports</h2>
+
+            <!-- Export Buttons -->
+            <div class="section-box">
+                <h3>Export Reports</h3>
+                <button class="btn btn-primary" onclick="printTeamReport()">📄 Print Team Report</button>
+                <button class="btn btn-primary" onclick="printAllKidReports()">👥 Print All Kid Reports</button>
+            </div>
+
+            <!-- Report Preview -->
+            <div id="reportPreview" class="report-preview">
+                <!-- This will be populated by JavaScript for preview -->
+            </div>
+        </section>
+    </div>
+
+    <!-- Print-Only Report Content -->
+    <div id="printReports" class="print-only"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

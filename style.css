@@ -1,0 +1,876 @@
+/* ==================== GLOBAL STYLES ==================== */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Comic Sans MS', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #333;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+
+/* ==================== HEADER ==================== */
+
+.header {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    padding: 30px 20px;
+    text-align: center;
+    color: white;
+}
+
+.header h1 {
+    font-size: 2.5em;
+    margin-bottom: 5px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.header .subtitle {
+    font-size: 1.1em;
+    opacity: 0.95;
+}
+
+/* ==================== NAVIGATION TABS ==================== */
+
+.tabs {
+    display: flex;
+    background: #f8f9fa;
+    border-bottom: 3px solid #667eea;
+    overflow-x: auto;
+}
+
+.tab-button {
+    flex: 1;
+    padding: 15px 20px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: 600;
+    color: #666;
+    border-bottom: 4px solid transparent;
+    transition: all 0.3s ease;
+    min-width: 120px;
+}
+
+.tab-button:hover {
+    background: #e9ecef;
+    color: #333;
+}
+
+.tab-button.active {
+    color: #667eea;
+    border-bottom-color: #667eea;
+    background: #f0f4ff;
+}
+
+/* ==================== TAB CONTENT ==================== */
+
+.tab-content {
+    display: none;
+    padding: 30px;
+    animation: fadeIn 0.3s ease;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tab-content h2 {
+    color: #667eea;
+    margin-bottom: 25px;
+    font-size: 2em;
+}
+
+/* ==================== SECTION BOXES ==================== */
+
+.section-box {
+    background: #f8f9fa;
+    border-left: 5px solid #667eea;
+    padding: 20px;
+    margin-bottom: 25px;
+    border-radius: 10px;
+}
+
+.section-box h3 {
+    color: #333;
+    margin-bottom: 15px;
+    font-size: 1.3em;
+}
+
+/* ==================== FORMS & INPUTS ==================== */
+
+.input-group {
+    margin-bottom: 15px;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #333;
+}
+
+.input-group input,
+.input-group select {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 1em;
+    font-family: inherit;
+    transition: border-color 0.3s ease;
+}
+
+.input-group input:focus,
+.input-group select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.checkbox-group {
+    margin: 15px 0;
+}
+
+.checkbox-group label {
+    display: flex;
+    align-items: center;
+    font-weight: normal;
+    cursor: pointer;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: auto;
+    margin-right: 10px;
+    cursor: pointer;
+}
+
+/* ==================== BUTTONS ==================== */
+
+.btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-block;
+    text-align: center;
+    min-width: 120px;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #5568d3 0%, #6a4391 100%);
+}
+
+.btn-secondary {
+    background: #e9ecef;
+    color: #333;
+    border: 2px solid #667eea;
+}
+
+.btn-secondary:hover {
+    background: #667eea;
+    color: white;
+}
+
+.btn-danger {
+    background: #ff6b6b;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #ee5a52;
+}
+
+.button-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* ==================== TEAM & PRODUCT MANAGEMENT ==================== */
+
+.team-list,
+.product-list,
+.sales-list {
+    margin-bottom: 20px;
+}
+
+.team-item,
+.product-item,
+.sales-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+}
+
+.team-item .name,
+.product-item .name,
+.sales-item .info {
+    flex: 1;
+    font-weight: 600;
+}
+
+.product-item .price {
+    color: #666;
+    margin-right: 15px;
+}
+
+.sales-item .details {
+    flex: 1;
+    font-size: 0.9em;
+    color: #666;
+}
+
+.product-item .actions,
+.team-item .actions,
+.sales-item .actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-small {
+    padding: 6px 12px;
+    font-size: 0.9em;
+    min-width: auto;
+}
+
+.btn-edit {
+    background: #4ecdc4;
+    color: white;
+}
+
+.btn-delete {
+    background: #ff6b6b;
+    color: white;
+}
+
+/* ==================== SALES MODE TOGGLE ==================== */
+
+.mode-toggle {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 25px;
+}
+
+.mode-btn {
+    flex: 1;
+    padding: 12px 20px;
+    border: 2px solid #ddd;
+    background: white;
+    border-radius: 8px;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.mode-btn:hover {
+    border-color: #667eea;
+    color: #667eea;
+}
+
+.mode-btn.active {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+/* ==================== QUICK SALE GRID ==================== */
+
+.quick-sale-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.quick-sale-btn {
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1em;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.quick-sale-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+.quick-sale-btn:active {
+    transform: scale(0.98);
+}
+
+.quick-sale-btn .product-name {
+    font-size: 1.2em;
+    margin-bottom: 5px;
+}
+
+.quick-sale-btn .product-price {
+    font-size: 0.9em;
+    opacity: 0.9;
+}
+
+/* ==================== MODAL ==================== */
+
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.hidden {
+    display: none !important;
+}
+
+.modal:not(.hidden) {
+    display: flex;
+}
+
+.modal-content {
+    background: white;
+    padding: 40px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    max-width: 400px;
+}
+
+.modal-content h3 {
+    margin-bottom: 20px;
+    color: #333;
+    font-size: 1.5em;
+}
+
+.modal-content p {
+    margin-bottom: 25px;
+    font-size: 1.1em;
+    color: #666;
+}
+
+.modal-content .btn {
+    display: block;
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+/* ==================== TOTALS & METRICS ==================== */
+
+.cost-inputs {
+    margin-bottom: 20px;
+}
+
+.cost-summary {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    font-size: 1.2em;
+    color: #667eea;
+}
+
+.totals-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+}
+
+.total-card {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    border: 2px solid #667eea;
+}
+
+.total-label {
+    font-size: 0.9em;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+.total-amount {
+    font-size: 1.8em;
+    font-weight: 700;
+    color: #667eea;
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.metric-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 25px;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+}
+
+.metric-label {
+    font-size: 0.95em;
+    opacity: 0.9;
+    margin-bottom: 10px;
+}
+
+.metric-value {
+    font-size: 2.2em;
+    font-weight: 700;
+}
+
+/* ==================== BREAK-EVEN METER ==================== */
+
+.break-even-container {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 40px;
+    background: #e9ecef;
+    border-radius: 20px;
+    overflow: hidden;
+    margin-bottom: 15px;
+    border: 2px solid #667eea;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    transition: width 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 15px;
+    color: white;
+    font-weight: 700;
+}
+
+.break-even-info {
+    text-align: center;
+}
+
+.break-even-info p {
+    margin: 8px 0;
+    color: #333;
+    font-size: 1.1em;
+}
+
+/* ==================== PROFIT POT ==================== */
+
+.profit-pot {
+    background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+}
+
+.profit-display {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.profit-card {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+}
+
+.profit-label {
+    font-size: 0.95em;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+.profit-amount {
+    font-size: 2.5em;
+    font-weight: 700;
+    color: #667eea;
+}
+
+.profit-amount.negative {
+    color: #ff6b6b;
+}
+
+/* ==================== PRODUCT CHART ==================== */
+
+.product-chart {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+}
+
+.chart-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.chart-label {
+    width: 150px;
+    font-weight: 600;
+    color: #333;
+    word-wrap: break-word;
+}
+
+.chart-bar-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    margin: 0 15px;
+}
+
+.chart-bar {
+    height: 30px;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    border-radius: 5px;
+    transition: all 0.3s ease;
+    min-width: 2px;
+}
+
+.chart-bar:hover {
+    filter: brightness(1.1);
+}
+
+.chart-value {
+    min-width: 40px;
+    text-align: right;
+    font-weight: 600;
+    color: #667eea;
+}
+
+/* ==================== TOP SELLER BADGE ==================== */
+
+.top-seller-badge {
+    background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    font-size: 1.3em;
+    font-weight: 700;
+    color: #333;
+    animation: pulse 1.5s infinite;
+}
+
+.top-seller-badge.hidden {
+    display: none;
+}
+
+.badge-emoji {
+    font-size: 2em;
+    margin-right: 10px;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+/* ==================== CONFETTI ==================== */
+
+.confetti-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 999;
+}
+
+.confetti {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    animation: confetti-fall 3s ease-out forwards;
+}
+
+@keyframes confetti-fall {
+    0% {
+        transform: translateY(0) translateX(0) rotate(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(100vh) translateX(var(--tx)) rotate(360deg);
+        opacity: 0;
+    }
+}
+
+/* ==================== REPORTS ==================== */
+
+.report-preview {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    font-size: 0.95em;
+    line-height: 1.6;
+}
+
+.report-section {
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.report-section:last-child {
+    border-bottom: none;
+}
+
+.report-title {
+    font-size: 1.3em;
+    font-weight: 700;
+    color: #667eea;
+    margin-bottom: 15px;
+}
+
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 15px 0;
+}
+
+.report-table th {
+    background: #f0f4ff;
+    padding: 10px;
+    text-align: left;
+    font-weight: 700;
+    color: #333;
+    border-bottom: 2px solid #667eea;
+}
+
+.report-table td {
+    padding: 10px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.report-table tr:hover {
+    background: #f8f9fa;
+}
+
+/* ==================== PRINT STYLES ==================== */
+
+@media print {
+    body {
+        background: white;
+        padding: 0;
+    }
+
+    .container {
+        box-shadow: none;
+        max-width: 100%;
+        border-radius: 0;
+    }
+
+    .header {
+        page-break-after: avoid;
+    }
+
+    .tabs,
+    .mode-toggle,
+    .tab-content:not(.active),
+    #reportPreview {
+        display: none !important;
+    }
+
+    #printReports {
+        display: block;
+    }
+
+    .section-box {
+        page-break-inside: avoid;
+        border: 1px solid #ddd;
+        background: white;
+    }
+
+    .report-section {
+        page-break-inside: avoid;
+        padding-bottom: 30px;
+    }
+
+    .page-break {
+        page-break-after: always;
+    }
+
+    .metric-card,
+    .total-card {
+        background: white !important;
+        border: 1px solid #ddd;
+        color: #333;
+    }
+
+    .metric-value,
+    .profit-amount,
+    .total-amount,
+    .chart-bar {
+        color: #333 !important;
+        background: #f0f0f0 !important;
+    }
+
+    h1, h2, h3 {
+        color: #333;
+    }
+
+    .chart-bar {
+        background: #999 !important;
+    }
+}
+
+/* ==================== RESPONSIVE DESIGN ==================== */
+
+@media (max-width: 768px) {
+    .header h1 {
+        font-size: 1.8em;
+    }
+
+    .tabs {
+        flex-wrap: wrap;
+    }
+
+    .tab-button {
+        flex: 0 1 auto;
+        min-width: 100px;
+        padding: 10px 15px;
+        font-size: 0.9em;
+    }
+
+    .quick-sale-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .metrics-grid,
+    .totals-grid,
+    .profit-display {
+        grid-template-columns: 1fr;
+    }
+
+    .modal-content {
+        margin: 20px;
+        max-width: calc(100% - 40px);
+    }
+
+    .chart-label {
+        width: 100px;
+        font-size: 0.9em;
+    }
+}
+
+@media (max-width: 480px) {
+    .header h1 {
+        font-size: 1.4em;
+    }
+
+    .tab-content {
+        padding: 15px;
+    }
+
+    .section-box {
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+
+    .quick-sale-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .quick-sale-btn {
+        padding: 15px;
+        min-height: 80px;
+        font-size: 1em;
+    }
+
+    .button-group {
+        flex-direction: column;
+    }
+
+    .btn {
+        width: 100%;
+    }
+
+    .chart-label {
+        width: 80px;
+        font-size: 0.8em;
+    }
+
+    .metric-value {
+        font-size: 1.8em;
+    }
+
+    .profit-amount {
+        font-size: 2em;
+    }
+}
