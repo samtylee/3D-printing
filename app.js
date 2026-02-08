@@ -74,14 +74,16 @@ function setupFirebaseListeners() {
 
 function checkOnlineStatus() {
     const isOnlineNow = navigator.onLine;
-    updateSyncStatus(isOnlineNow && firebaseReady);
+    const hasFirebase = firebaseReady && realtimeDB !== null;
+    updateSyncStatus(isOnlineNow && hasFirebase);
     
-    if (!firebaseReady) return;
-    const connectedRef = realtimeDB.ref('.info/connected');
-    connectedRef.on('value', (snapshot) => {
-        isOnline = snapshot.val() === true;
-        updateSyncStatus(isOnline);
-    });
+    if (hasFirebase) {
+        const connectedRef = realtimeDB.ref('.info/connected');
+        connectedRef.on('value', (snapshot) => {
+            isOnline = snapshot.val() === true;
+            updateSyncStatus(isOnline);
+        });
+    }
 }
 
 function updateSyncStatus(online) {
@@ -710,14 +712,18 @@ function resetAllData() {
 }
 
 function renderAll() {
-    renderTeamList();
-    renderProductList();
-    renderProductButtons();
-    renderCostInputs();
-    renderTotalCosts();
-    renderSaleProductDropdown();
-    renderSales();
-    renderDashboard();
+    try {
+        renderTeamList();
+        renderProductList();
+        renderProductButtons();
+        renderCostInputs();
+        renderTotalCosts();
+        renderSaleProductDropdown();
+        renderSales();
+        renderDashboard();
+    } catch (e) {
+        console.error('Error in renderAll:', e);
+    }
 }
 
 // ===== UI LISTENERS & INITIALIZATION =====
@@ -849,6 +855,10 @@ if (document.readyState === 'loading') {
 }
 
 function initializeApp() {
+    console.log('🚀 Initializing app...');
+    console.log('Firebase ready:', firebaseReady);
+    console.log('Online:', navigator.onLine);
+    
     loadFromStorage();
     setupFirebaseListeners();
     setupUIListeners();
@@ -856,13 +866,17 @@ function initializeApp() {
     updateSyncStatus(navigator.onLine && firebaseReady);
     
     window.addEventListener('online', () => {
+        console.log('App came online');
         updateSyncStatus(navigator.onLine && firebaseReady);
         saveToFirebase();
     });
     
     window.addEventListener('offline', () => {
+        console.log('App went offline');
         updateSyncStatus(false);
     });
     
+    console.log('Calling renderAll...');
     renderAll();
+    console.log('✅ App initialization complete');
 }
