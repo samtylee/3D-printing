@@ -512,7 +512,7 @@
         function updateProductSelect() {
             const select = document.getElementById('saleProduct');
             const detailSelect = document.getElementById('saleProductSelect');
-            if (!select && !detailSelect) return;
+            if (!select && !detailSelect) return; // Elements might not exist (Sales tab hidden)
             const current = select?.value || detailSelect?.value;
             const html = '<option>Select product...</option>' + 
                 appData.products.map(p => `<option value="${p.id}">${p.name} - $${p.price.toFixed(2)}</option>`).join('');
@@ -521,13 +521,13 @@
                 appData.products.map(p => `<option value="${p.id}">${p.name} - $${p.price.toFixed(2)}</option>`).join('');
         }
 
-        function switchSalesMode(mode) {
-            appData.currentSalesMode = mode;
-            document.querySelectorAll('.sales-mode').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.mode-btn').forEach(el => el.classList.remove('active'));
-            document.getElementById(mode === 'quick' ? 'quickSaleMode' : 'detailedSalesMode').classList.add('active');
-            document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
-            renderQuickSaleButtons();
+        function renderQuickSaleButtons() {
+            const grid = document.getElementById('quickSaleButtons');
+            if (!grid) return; // Element might not exist (Sales tab hidden)
+            grid.innerHTML = appData.products.map(p => 
+                `<button class="product-btn" data-product-id="${p.id}" onclick="handleProductClick(this)">${p.name}<br>$${p.price.toFixed(2)}</button>`
+            ).join('');
+        }
         }
 
         function renderQuickSaleButtons() {
